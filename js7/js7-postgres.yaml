@@ -1,0 +1,26 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: js7-pg
+  namespace: js7
+spec:
+  instances: 3
+#  bootstrap:
+#    initdb:
+#      dataChecksums: true
+#      encoding: 'UTF8'
+#      localeCollate: 'en_US.UTF-8'
+#      localeCType: 'en_US.UTF-8'
+#      database: JS7
+#      owner: JS7_USER
+#      secret:
+#        name: js7-user-credentials
+#      postInitApplicationSQLRefs:
+#        configMapRefs:
+#          - name: js7-sql-script
+#            key: pgsql.sql
+  storage:
+    size: 1Gi
+  monitoring:
+    enablePodMonitor: true

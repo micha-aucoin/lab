@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    run: js7joc
+  name: js7joc
+  namespace: js7
+spec:
+  ports:
+
+  - name: js7joc
+    port: 4446
+    protocol: TCP
+    targetPort: 4446
+
+  - name: js7agent
+    port: 4445
+    protocol: TCP
+    targetPort: 4445
+
+  - name: js7controller
+    port: 4444
+    protocol: TCP
+    targetPort: 4444
+
+  selector:
+    run: js7joc
+  type: LoadBalancer
+status:
+  loadBalancer: {}
