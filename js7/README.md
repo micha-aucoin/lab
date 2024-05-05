@@ -1,14 +1,38 @@
 # Getting Started
-0. `cd js7/`
-1. install [cloudNativePG](https://github.com/cloudnative-pg/cloudnative-pg/tree/main/releases "find the list of releases") kubernetes operator `kubectl apply --server-side -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.23/releases/cnpg-1.23.1.yaml`
-2. create database `kubectl apply -f js7-postgres.yaml`
-3. create configmap to mount the hibernate.cfg.xml file with db credentials `./scripts/update_hibernate_config.sh`
-4. deploy the controller, agent, & joc pods `kubectl apply -f js7-deployment.yaml`
-5. deploy services `kubectl apply -f js7-service.yaml`
-6. install database tables `kubectl exec -it js7joc -c js7joc -- bash -c /opt/sos-berlin.com/js7/joc/install/joc_install_tables.sh`
+
+change directory
+```shell
+cd js7/
+```
+
+install [cloudNativePG](https://github.com/cloudnative-pg/cloudnative-pg/tree/main/releases "find the list of releases") kubernetes operator 
+```shell
+kubectl apply --server-side -f \
+https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.23/releases/cnpg-1.23.1.yaml
+```
+create database 
+```shell
+kubectl apply -f js7-postgres.yaml
+```
+create configmap to mount the hibernate.cfg.xml file with db credentials 
+```shell
+./scripts/update_hibernate_config.sh
+```
+deploy the controller, agent, & joc pods 
+```shell
+kubectl apply -f js7-deployment.yaml
+```
+deploy services 
+```shell
+kubectl apply -f js7-service.yaml
+```
+install database tables 
+```shell
+kubectl exec -it js7joc -c js7joc -- bash -c /opt/sos-berlin.com/js7/joc/install/joc_install_tables.sh
+```
 
 # [JS7 login](http://localhost:4446/)
-Inital username and password will be `root`.<br>
+Inital username and password will be `root`.<br><br>
 <img src="./img/login.png" width="300">
 
 <br>
