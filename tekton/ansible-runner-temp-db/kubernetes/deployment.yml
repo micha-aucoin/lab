@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: test-db
+  name: test-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-db
+  template:
+    metadata:
+      labels:
+        app: test-db
+    spec:
+      containers:
+      - image: bitnami/postgresql:13
+        name: postgresql
+        ports:
+        - containerPort: 5432

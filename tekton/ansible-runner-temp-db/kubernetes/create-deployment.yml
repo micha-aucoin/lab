@@ -1,0 +1,22 @@
+- hosts: localhost
+  connection: local
+  collections:
+    - kubernetes.core
+  tasks:
+    - name: Create a new deployment
+      k8s:
+        state: present
+        src: deployment.yml
+        wait: yes
+      register: test_db_deployment
+    - name: Get the Deployment
+      k8s_info:
+        kind: Deployment
+        namespace: tekton-temp
+      register: tekton_temp_deployments_list
+    - name: Log Deployment Details
+      debug:
+        msg: "{{ item | json_query('metadata.name') }}"
+      loop: '{{tekton_temp_deployments_list.resources}}'
+      loop_control:
+        label: "Deployment (Namespace: {{item | json_query('metadata.namespace')}},Replicas:{{ item | json_query('spec.replicas')}})"
