@@ -14,6 +14,7 @@ spec:
   workspaces:
   - name: shared-data
   - name: docker-credentials
+  - name: ansible-playbooks
   tasks:
   - name: fetch-source
     taskRef:
@@ -24,8 +25,54 @@ spec:
     params:
     - name: url
       value: $(params.repo-url)
+  - name: fetch-ansible-playbooks
+    taskRef:
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: ansible-playbooks
+    params:
+    - name: url
+      value: https://github.com/micha-aucoin/ansible-runner-temp-db.git
+    - name: revision
+      value: master
+  - name: create-postgres-deployment
+    runAfter: ["fetch-ansible-playbooks"]
+    taskRef:
+      name: ansible-runner
+    params:
+    - name: project-dir
+      value: kubernetes
+    - name: args
+      value:
+        - '-p'
+        - 'create-deployment.yml'
+    workspaces:
+    - name: runner-dir
+      workspace: ansible-playbooks
+  - name: create-postgres-service
+    runAfter: ["create-postgres-deployment"]
+    taskRef:
+      name: ansible-runner
+    params:
+    - name: project-dir
+      value: kubernetes
+    - name: args
+      value:
+        - '-p'
+        - 'create-service.yml'
+    workspaces:
+    - name: runner-dir
+      workspace: ansible-playbooks
+  - name: run-tests
+    runAfter: ["fetch-source", "create-postgres-service"]
+    taskRef:
+      name: run-tests
+    workspaces:
+    - name: source
+      workspace: shared-data
   - name: build-push
-    runAfter: ["fetch-source"]
+    runAfter: ["run-tests"]
     taskRef:
       name: kaniko
     workspaces:
@@ -36,3 +83,31 @@ spec:
     params:
     - name: IMAGE
       value: $(params.image-reference)
+  - name: cleanup-postgres-deployment
+    runAfter: ["build-push"]
+    taskRef:
+      name: ansible-runner
+    params:
+    - name: project-dir
+      value: kubernetes
+    - name: args
+      value:
+        - '-p'
+        - 'delete-deployment.yml'
+    workspaces:
+    - name: runner-dir
+      workspace: ansible-playbooks
+  - name: cleanup-postgres-service
+    runAfter: ["cleanup-postgres-deployment"]
+    taskRef:
+      name: ansible-runner
+    params:
+    - name: project-dir
+      value: kubernetes
+    - name: args
+      value:
+        - '-p'
+        - 'delete-service.yml'
+    workspaces:
+    - name: runner-dir
+      workspace: ansible-playbooks

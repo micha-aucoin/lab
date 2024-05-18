@@ -14,7 +14,7 @@ kubectl config set-context --current --namespace=tekton-temp
 tkn hub install task git-clone --version 0.9
 tkn hub install task ansible-runner --version 0.2
 
-kubectl apply -f  https://raw.githubusercontent.com/micha-aucoin/tektoncd-ansible-runner-example/master/playbooks-pvc.yaml
+kubectl apply -f https://raw.githubusercontent.com/micha-aucoin/lab/main/tekton/ansible-runner-temp-db/playbooks-pvc.yaml
 ```
 
 ## Examples
