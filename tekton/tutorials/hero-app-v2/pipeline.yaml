@@ -6,16 +6,20 @@ spec:
   description: |
     This pipeline clones a git repo, builds a Docker image with Kaniko and
     pushes it to a registry
+
   params:
   - name: repo-url
     type: string
   - name: image-reference
     type: string
+
   workspaces:
   - name: shared-data
   - name: docker-credentials
   - name: ansible-playbooks
+
   tasks:
+
   - name: fetch-source
     taskRef:
       name: git-clone
@@ -25,6 +29,7 @@ spec:
     params:
     - name: url
       value: $(params.repo-url)
+
   - name: fetch-ansible-playbooks
     taskRef:
       name: git-clone
@@ -36,6 +41,7 @@ spec:
       value: https://github.com/micha-aucoin/ansible-runner-temp-db.git
     - name: revision
       value: master
+
   - name: create-postgres-deployment
     runAfter: ["fetch-ansible-playbooks"]
     taskRef:
@@ -50,6 +56,7 @@ spec:
     workspaces:
     - name: runner-dir
       workspace: ansible-playbooks
+
   - name: create-postgres-service
     runAfter: ["create-postgres-deployment"]
     taskRef:
@@ -64,6 +71,7 @@ spec:
     workspaces:
     - name: runner-dir
       workspace: ansible-playbooks
+
   - name: run-tests
     runAfter: ["fetch-source", "create-postgres-service"]
     taskRef:
@@ -71,6 +79,7 @@ spec:
     workspaces:
     - name: source
       workspace: shared-data
+
   - name: build-push
     runAfter: ["run-tests"]
     taskRef:
@@ -83,6 +92,7 @@ spec:
     params:
     - name: IMAGE
       value: $(params.image-reference)
+
   - name: cleanup-postgres-deployment
     runAfter: ["build-push"]
     taskRef:
@@ -97,6 +107,7 @@ spec:
     workspaces:
     - name: runner-dir
       workspace: ansible-playbooks
+
   - name: cleanup-postgres-service
     runAfter: ["cleanup-postgres-deployment"]
     taskRef:
