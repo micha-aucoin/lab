@@ -63,6 +63,10 @@ tkn pipeline start hero-app-v2 \
 
 ## Backstage
 
+### service account
+
 ```shell
-kubectl -n default get secret janus-idp-tekton-plugin -o go-template='{{.data.token | base64decode}}'
+kubectl apply -f backstage/bs-RBAC.yaml
+kubectl apply -f backstage/sa-secret.yaml
+export K8S_RANCHER_DESKTOP_TOKEN=$(kubectl -n default get secret janus-idp-tekton-plugin -o go-template='{{.data.token | base64decode}}')
 ```
