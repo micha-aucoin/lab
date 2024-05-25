@@ -57,5 +57,12 @@ tkn pipeline start hero-app-v2 \
   --workspace=name=ansible-playbooks,claimName=ansible-playbooks \
   --param=repo-url=https://github.com/micha-aucoin/hero-app-v2.git \
   --param=image-reference=ghcr.io/micha-aucoin/hero-app-v2:latest \
+  --labels app=hero-app-v2 \
   --showlog
+```
+
+## Backstage
+
+```shell
+kubectl -n default get secret janus-idp-tekton-plugin -o go-template='{{.data.token | base64decode}}'
 ```

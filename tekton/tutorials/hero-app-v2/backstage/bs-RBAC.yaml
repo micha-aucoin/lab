@@ -1,0 +1,69 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backstage-read-only
+rules:
+  - apiGroups:
+      - '*'
+    resources:
+      - pods
+      - pods/log
+      - configmaps
+      - services
+      - deployments
+      - replicasets
+      - horizontalpodautoscalers
+      - ingresses
+      - statefulsets
+      - limitranges
+      - resourcequotas
+      - daemonsets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - metrics.k8s.io
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns
+      - taskruns
+    verbs:
+      - get
+      - list
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: janus-idp-tekton-plugin
+  namespace: default  # Change this if you want to use a different namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: janus-idp-tekton-plugin-binding
+subjects:
+  - kind: ServiceAccount
+    name: janus-idp-tekton-plugin
+    namespace: default  # This should match the namespace of your service account
+roleRef:
+  kind: ClusterRole
+  name: backstage-read-only
+  apiGroup: rbac.authorization.k8s.io
+
