@@ -48,11 +48,13 @@ spec:
       name: ansible-runner
     params:
     - name: project-dir
-      value: kubernetes
+      value: playbooks
     - name: args
       value:
         - '-p'
-        - 'create-deployment.yml'
+        - 'deployment.yml'
+        - '--cmdline'
+        - "--extra-vars 'state=present src=../kubernetes/hero-pg/deployment.yaml'"
     workspaces:
     - name: runner-dir
       workspace: ansible-playbooks
@@ -63,11 +65,13 @@ spec:
       name: ansible-runner
     params:
     - name: project-dir
-      value: kubernetes
+      value: playbooks
     - name: args
       value:
         - '-p'
-        - 'create-service.yml'
+        - 'service.yml'
+        - '--cmdline'
+        - "--extra-vars 'state=present src=../kubernetes/hero-pg/service.yaml'"
     workspaces:
     - name: runner-dir
       workspace: ansible-playbooks
@@ -99,11 +103,13 @@ spec:
       name: ansible-runner
     params:
     - name: project-dir
-      value: kubernetes
+      value: playbooks
     - name: args
       value:
         - '-p'
-        - 'delete-deployment.yml'
+        - 'deployment.yml'
+        - '--cmdline'
+        - "--extra-vars 'state=absent src=../kubernetes/hero-pg/deployment.yaml'"
     workspaces:
     - name: runner-dir
       workspace: ansible-playbooks
@@ -114,11 +120,13 @@ spec:
       name: ansible-runner
     params:
     - name: project-dir
-      value: kubernetes
+      value: playbooks
     - name: args
       value:
         - '-p'
-        - 'delete-service.yml'
+        - 'service.yml'
+        - '--cmdline'
+        - "--extra-vars 'state=absent src=../kubernetes/hero-pg/service.yaml'"
     workspaces:
     - name: runner-dir
       workspace: ansible-playbooks

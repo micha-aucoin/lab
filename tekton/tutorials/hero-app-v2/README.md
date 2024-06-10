@@ -28,7 +28,7 @@ kubectl apply -f pipeline.yaml
 ## Storage/ Workspaces
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/micha-aucoin/ansible-runner-temp-db/master/playbooks-pvc.yaml
+kubectl apply -f https://raw.githubusercontent.com/micha-aucoin/ansible-runner-temp-db/master/kubernetes/playbooks-pvc.yaml
 kubectl apply -f storage
 ```
 ```shell
