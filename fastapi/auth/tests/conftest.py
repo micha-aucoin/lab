@@ -1,10 +1,14 @@
 import pytest
-from fastapi.testclient import TestClient
-from src.main import app
+import pytest_asyncio
+from httpx import AsyncClient
+from app.main import app
 from .fakes import setup_fake_db
 
-@pytest.fixture(scope="module")
-def client():
+@pytest_asyncio.fixture(scope="function")
+async def _async_client():
     setup_fake_db()
-    return TestClient(app)
-
+    async with AsyncClient(
+        app=app,
+        base_url=f"http://",
+    ) as client:
+        yield client
