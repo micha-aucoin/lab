@@ -1,3 +1,8 @@
 fastapi
 pyjwt
 passlib[bcrypt]
+httpx
+pytest
+pytest-asyncio
+pytest-cov
+pytest-mock
