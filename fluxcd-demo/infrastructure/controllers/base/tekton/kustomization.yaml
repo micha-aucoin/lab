@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.62.0/release.yaml
-  - https://storage.googleapis.com/tekton-releases/triggers/previous/v0.28.0/release.yaml
-  - https://storage.googleapis.com/tekton-releases/triggers/previous/v0.28.0/interceptors.yaml
-  - https://storage.googleapis.com/tekton-releases/dashboard/v0.49.0/release.yaml
+  - releases/pipelinev0.62.0.yaml
+  - releases/triggersv0.28.0.yaml
+  - releases/interceptorsv0.28.0.yaml
+  - releases/dashboardv0.49.0.yaml
