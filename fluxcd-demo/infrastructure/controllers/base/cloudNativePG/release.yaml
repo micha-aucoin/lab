@@ -13,3 +13,5 @@ spec:
         name: cloudnative-pg
       version: '0.21.*'
   interval: 1h0m0s
+  install:
+    createNamespace: true
