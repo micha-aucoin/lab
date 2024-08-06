@@ -7,7 +7,7 @@ metadata:
 spec:
   chart:
     spec:
-      chart: cnpg/cloudnative-pg
+      chart: cloudnative-pg
       sourceRef:
         kind: HelmRepository
         name: cloudnative-pg
