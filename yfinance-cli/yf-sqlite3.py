@@ -23,6 +23,7 @@ def run_selector(conn, queries):
     cursor = conn.cursor()
     for query in queries:
         print()
+        print(f"============================= {query} =============================")
         try:
             cursor.execute(query)
             conn.commit()
@@ -175,17 +176,17 @@ python yf-sqlite3.py :memory: msft \\
     )
     parser.add_argument(
         "db",
-        help="SQLite database file or :memory:",
+        help="Create SQLite database file or use in :memory:",
     )
     parser.add_argument(
         "ticker",
-        help="Query yahoo finance for ticker",
+        help="Query yahoo finance for this ticker",
     )
     parser.add_argument(
         "-s",
         "--selector",
         action="append",
-        help="Execute custom SQL select queries.",
+        help="Execute custom select queries.",
     )
     parser.add_argument(
         "-o",
