@@ -8,6 +8,9 @@ import subprocess
 import pandas as pd
 import yfinance as yf
 
+con = sqlite3.connect(":memory:")
+cur = con.cursor()
+
 parser = argparse.ArgumentParser(prog="yf", description="yfinance cli")
 parser.add_argument("ticker", help="stock ticker")
 parser.add_argument("--info", help="stock information", action="store_true")
