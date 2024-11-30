@@ -1,15 +1,15 @@
 #!/home/vagrant/micromamba/envs/yfin-cli/bin/python
 
 import argparse
+import csv
 import json
+import os
 import sqlite3
 import subprocess
+from datetime import datetime
 
 import pandas as pd
 import yfinance as yf
-
-con = sqlite3.connect(":memory:")
-cur = con.cursor()
 
 parser = argparse.ArgumentParser(prog="yf", description="yfinance cli")
 parser.add_argument("ticker", help="stock ticker")
@@ -24,7 +24,7 @@ parser.add_argument(
     metavar=("experation", "option_type"),
     help="option chain: optionally specify expiration date and option type ('calls' or 'puts')",
 )
-# parser.add_argument("--options", help="option chain", action="store_true")
+parser.add_argument("--csv", help="creates a csv file", action="store_true")
 parser.add_argument("--pretty", help="enable pretty printing", action="store_true")
 parser.add_argument("--fzf", help="enable fzf for selection", action="store_true")
 
@@ -93,6 +93,37 @@ def handle_options(dat, option_args):
     raise Exception("invalid arguments passed to --options, must be two or zero")
 
 
+def csv_writer(json_data, file_name):
+    if args.csv:
+        print()
+        print("=========== write output to csv ===========")
+        if not isinstance(json_data, str):
+            raise ValueError(
+                f"\nBummer... you're trying to write a {type(json_data)} to csv.\ntry using --csv and --pretty together.\n"
+            )
+        data = json.loads(json_data)
+
+        if not all(isinstance(item, dict) for item in data):
+            provided_types = set(type(item) for item in data)
+            raise ValueError(
+                f"\nBummer... you can only write a list of dictionaries to the file.\nlooks like you provided a list of {provided_types}\n"
+            )
+
+        date_time_suffix = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+
+        current_dir = os.getcwd()
+        output_file = os.path.join(current_dir, f"{file_name}_{date_time_suffix}.csv")
+
+        with open(output_file, "w", newline="") as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+
+        print(f"Data has been saved to '{output_file}'.")
+        print("=========== write output to csv ===========")
+        print()
+
+
 dat = yf.Ticker(args.ticker.upper())
 if args.info:
     print(pretty(dat.info))
@@ -102,7 +133,9 @@ elif args.calendar:
 elif args.options is not None:
     try:
         option_data = handle_options(dat, args.options)
-        print(pretty(option_data))
+        this_is_json = pretty(option_data)
+        print(this_is_json)
+        csv_writer(this_is_json, "output")
     except Exception as e:
         print(e)
 else:
