@@ -22,17 +22,15 @@ def run_selector(conn, queries):
     """Run custom SQL select queries."""
     cursor = conn.cursor()
     for query in queries:
+        print()
         try:
             cursor.execute(query)
             conn.commit()
             if query.strip().lower().startswith("select"):
                 rows = cursor.fetchall()
                 for row in rows:
-                    print()
-                    print(f"======== ({query}) ========")
                     print(row)
             else:
-                print()
                 print(f"I'm not executing this -> {query}")
 
         except sqlite3.Error as e:
@@ -42,46 +40,53 @@ def run_selector(conn, queries):
 
 def check_tables_exist(conn):
     cursor = conn.cursor()
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS calls(
-            contractSymbol,
-            lastTradeDate,
-            strike,
-            lastPrice,
-            bid,
-            ask,
-            change,
-            percentChange,
-            volume,
-            openInterest,
-            impliedVolatility,
-            inTheMoney,
-            contractSize,
-            currency
+    try:
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS calls(
+                contractSymbol,
+                lastTradeDate,
+                strike,
+                lastPrice,
+                bid,
+                ask,
+                change,
+                percentChange,
+                volume,
+                openInterest,
+                impliedVolatility,
+                inTheMoney,
+                contractSize,
+                currency
+            )
+            """
         )
-        """
-    )
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS puts(
-            contractSymbol,
-            lastTradeDate,
-            strike,
-            lastPrice,
-            bid,
-            ask,
-            change,
-            percentChange,
-            volume,
-            openInterest,
-            impliedVolatility,
-            inTheMoney,
-            contractSize,
-            currency
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS puts(
+                contractSymbol,
+                lastTradeDate,
+                strike,
+                lastPrice,
+                bid,
+                ask,
+                change,
+                percentChange,
+                volume,
+                openInterest,
+                impliedVolatility,
+                inTheMoney,
+                contractSize,
+                currency
+            )
+            """
         )
-        """
-    )
+
+    except sqlite3.Error as e:
+        print(f"Error executing query: {e}")
+        conn.rollback()
+    finally:
+        cursor.close()
 
 
 def two_dict(data):
@@ -94,55 +99,61 @@ def two_dict(data):
 
 def insert_options_data(conn, ticker):
     cursor = conn.cursor()
+    try:
+        dat = yf.Ticker(ticker)
+        expirations = dat.options
+        for expiration in expirations:
+            calls = two_dict(dat.option_chain(expiration).calls)
+            puts = two_dict(dat.option_chain(expiration).puts)
 
-    dat = yf.Ticker(ticker)
-    expirations = dat.options
-    for expiration in expirations:
-        calls = two_dict(dat.option_chain(expiration).calls)
-        puts = two_dict(dat.option_chain(expiration).puts)
+            cursor.executemany(
+                """
+                insert into calls values(
+                    :contractSymbol,
+                    :lastTradeDate,
+                    :strike,
+                    :lastPrice,
+                    :bid,
+                    :ask,
+                    :change,
+                    :percentChange,
+                    :volume,
+                    :openInterest,
+                    :impliedVolatility,
+                    :inTheMoney,
+                    :contractSize,
+                    :currency
+                )
+                """,
+                calls,
+            )
+            cursor.executemany(
+                """
+                insert into puts values(
+                    :contractSymbol,
+                    :lastTradeDate,
+                    :strike,
+                    :lastPrice,
+                    :bid,
+                    :ask,
+                    :change,
+                    :percentChange,
+                    :volume,
+                    :openInterest,
+                    :impliedVolatility,
+                    :inTheMoney,
+                    :contractSize,
+                    :currency
+                )
+                """,
+                puts,
+            )
 
-        cursor.executemany(
-            """
-            insert into calls values(
-                :contractSymbol,
-                :lastTradeDate,
-                :strike,
-                :lastPrice,
-                :bid,
-                :ask,
-                :change,
-                :percentChange,
-                :volume,
-                :openInterest,
-                :impliedVolatility,
-                :inTheMoney,
-                :contractSize,
-                :currency
-            )
-            """,
-            calls,
-        )
-        cursor.executemany(
-            """
-            insert into puts values(
-                :contractSymbol,
-                :lastTradeDate,
-                :strike,
-                :lastPrice,
-                :bid,
-                :ask,
-                :change,
-                :percentChange,
-                :volume,
-                :openInterest,
-                :impliedVolatility,
-                :inTheMoney,
-                :contractSize,
-                :currency
-            )
-            """,
-            puts,
-        )
+    except sqlite3.Error as e:
+        print(f"Error executing query: {e}")
+        conn.rollback()
+    finally:
+        cursor.close()
 
 
 def main():
@@ -155,10 +166,10 @@ def main():
 
 Example usage:
 --------------
-python yf-sqlite3.py :memory: msft\\
+python yf-sqlite3.py :memory: msft \\
     --options \\
     --selector 'select * from calls;' \\
-    --selector 'select * from puts;'
+    --selector 'select * from puts;' > output.txt
             """
         ),
     )
