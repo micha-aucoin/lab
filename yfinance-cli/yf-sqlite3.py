@@ -23,7 +23,7 @@ def run_selector(conn, queries):
     cursor = conn.cursor()
     for query in queries:
         print()
-        print(f"============================= {query} =============================")
+        print(f"============================= ({query}) =============================")
         try:
             cursor.execute(query)
             conn.commit()
@@ -40,49 +40,34 @@ def run_selector(conn, queries):
 
 
 def check_tables_exist(conn):
+    expiration_columns = """
+        id integer primary key autoincrement,
+        date text unique
+    """
+    option_columns = """
+        id integer primary key autoincrement,
+        expiration_id,
+        contractSymbol,
+        lastTradeDate,
+        strike,
+        lastPrice,
+        bid,
+        ask,
+        change,
+        percentChange,
+        volume,
+        openInterest,
+        impliedVolatility,
+        inTheMoney,
+        contractSize,
+        currency,
+        foreign key (expiration_id) references expiration (id)
+    """
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS calls(
-                contractSymbol,
-                lastTradeDate,
-                strike,
-                lastPrice,
-                bid,
-                ask,
-                change,
-                percentChange,
-                volume,
-                openInterest,
-                impliedVolatility,
-                inTheMoney,
-                contractSize,
-                currency
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS puts(
-                contractSymbol,
-                lastTradeDate,
-                strike,
-                lastPrice,
-                bid,
-                ask,
-                change,
-                percentChange,
-                volume,
-                openInterest,
-                impliedVolatility,
-                inTheMoney,
-                contractSize,
-                currency
-            )
-            """
-        )
-
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS expiration({expiration_columns})")
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS calls({option_columns})")
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS puts({option_columns})")
     except sqlite3.Error as e:
         print(f"Error executing query: {e}")
         conn.rollback()
@@ -100,54 +85,50 @@ def two_dict(data):
 
 def insert_options_data(conn, ticker):
     cursor = conn.cursor()
+    values = """
+        :contractSymbol,
+        :lastTradeDate,
+        :strike,
+        :lastPrice,
+        :bid,
+        :ask,
+        :change,
+        :percentChange,
+        :volume,
+        :openInterest,
+        :impliedVolatility,
+        :inTheMoney,
+        :contractSize,
+        :currency
+    """
+    columns = "\n\t".join([line.lstrip().strip(":") for line in values.splitlines()])
     try:
         dat = yf.Ticker(ticker)
         expirations = dat.options
         for expiration in expirations:
+            cursor.execute("insert into expiration(date) values(?)", (expiration,))
+            expiration_id = "(select id from expiration where date = ?)"
+
             calls = two_dict(dat.option_chain(expiration).calls)
             puts = two_dict(dat.option_chain(expiration).puts)
+            cursor.executemany(f"insert into calls({columns}) values({values})", calls)
+            cursor.executemany(f"insert into puts({columns}) values({values})", puts)
 
-            cursor.executemany(
-                """
-                insert into calls values(
-                    :contractSymbol,
-                    :lastTradeDate,
-                    :strike,
-                    :lastPrice,
-                    :bid,
-                    :ask,
-                    :change,
-                    :percentChange,
-                    :volume,
-                    :openInterest,
-                    :impliedVolatility,
-                    :inTheMoney,
-                    :contractSize,
-                    :currency
-                )
+            cursor.execute(
+                f"""
+                    update calls
+                    set expiration_id = {expiration_id}
+                    where expiration_id is null
                 """,
-                calls,
+                (expiration,),
             )
-            cursor.executemany(
-                """
-                insert into puts values(
-                    :contractSymbol,
-                    :lastTradeDate,
-                    :strike,
-                    :lastPrice,
-                    :bid,
-                    :ask,
-                    :change,
-                    :percentChange,
-                    :volume,
-                    :openInterest,
-                    :impliedVolatility,
-                    :inTheMoney,
-                    :contractSize,
-                    :currency
-                )
+            cursor.execute(
+                f"""
+                    update puts
+                    set expiration_id = {expiration_id}
+                    where expiration_id is null
                 """,
-                puts,
+                (expiration,),
             )
 
     except sqlite3.Error as e:
@@ -167,10 +148,9 @@ def main():
 
 Example usage:
 --------------
-python yf-sqlite3.py :memory: msft \\
-    --options \\
-    --selector 'select * from calls;' \\
-    --selector 'select * from puts;' > output.txt
+python yf-sqlite3.py :memory: msft --options \\
+    --selector "select * from expiration;" > output.txt \\
+    --selector "select c.* from calls c join expiration e on c.expiration_id = e.id where e.date = '2025-01-17';" > output.txt
             """
         ),
     )
