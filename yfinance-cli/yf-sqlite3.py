@@ -149,7 +149,7 @@ def main():
 Example usage:
 --------------
 python yf-sqlite3.py :memory: msft --options \\
-    --selector "select * from expiration;" > output.txt \\
+    --selector "select * from expiration;" \\
     --selector "select c.* from calls c join expiration e on c.expiration_id = e.id where e.date = '2025-01-17';" > output.txt
             """
         ),
