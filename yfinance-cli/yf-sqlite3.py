@@ -286,7 +286,13 @@ python yf-sqlite3.py :memory: msft --options --underline \\
     --selector "select * from underline_discriptor;" \\
     --selector "select * from underline_indicator;" \\
     --selector "select * from expiration;" \\
-    --selector "select c.* from calls c join expiration e on c.expiration_id = e.id where e.date = '2025-01-17';" > output.txt
+    --selector "select c.* from calls c join expiration e on c.expiration_id = e.id where e.date = '2025-01-17';" > msft_output.txt
+
+python yf-sqlite3.py :memory: nvda --options --underline \\
+    --selector "select * from underline_discriptor;" \\
+    --selector "select * from underline_indicator;" \\
+    --selector "select * from expiration;" \\
+    --selector "select c.* from calls c join expiration e on c.expiration_id = e.id where e.date = '2025-01-17';" > nvda_output.txt
             """
         ),
     )
