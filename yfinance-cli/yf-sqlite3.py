@@ -3,6 +3,7 @@ import json
 import sqlite3
 import sys
 import textwrap
+from datetime import datetime
 
 import pandas as pd
 import yfinance as yf
@@ -26,7 +27,7 @@ def run_selector(conn, queries):
         print(f"============================= ({query}) =============================")
         try:
             cursor.execute(query)
-            conn.commit()
+            # conn.commit()
             if query.strip().lower().startswith("select"):
                 rows = cursor.fetchall()
                 for row in rows:
@@ -66,12 +67,15 @@ def check_tables_exist(conn):
             inTheMoney,
             contractSize,
             currency,
-            foreign key (expiration_id) references expiration (id)
+            foreign key (expiration_id) references expiration(id)
         """,
     }
     underline_indicator = {
         "table_name": "underline_indicator",
         "columns": """
+            id integer primary key autoincrement,
+            underline_discriptor_id,
+            date,
             regularMarketPreviousClose,
             regularMarketOpen,
             regularMarketDayLow,
@@ -121,24 +125,27 @@ def check_tables_exist(conn):
             revenuePerShare,
             returnOnAssets,
             returnOnEquity,
-            trailingPegRatio
+            trailingPegRatio,
+            foreign key (underline_discriptor_id) references underline_discriptor(id)
         """,
     }
     underline_discriptor = {
         "table_name": "underline_discriptor",
         "columns": """
+            id integer primary key autoincrement,
             currency,
             exchange,
             quoteType,
-            symbol,
-            underlyingSymbol,
-            shortName,
-            longName,
+            symbol unique,
+            underlyingSymbol unique,
+            shortName unique,
+            longName unique,
             timeZoneFullName,
             timeZoneShortName,
             financialCurrency
         """,
     }
+    # unique(symbol, underlyingSymbol, shortName, longName)
     cursor = conn.cursor()
     try:
         # fmt: off
@@ -151,55 +158,67 @@ def check_tables_exist(conn):
     except sqlite3.Error as e:
         print(f"Error executing query: {e}")
         conn.rollback()
-    finally:
-        return [expiration, options, underline_indicator, underline_discriptor]
-        cursor.close()
 
-
-def insert_underline_indicator_data(conn, ticker, columns, values):
     # fmt: off
-    cursor = conn.cursor()
-    try:
-        dat = yf.Ticker(ticker)
-        info = dat.info
-        cursor.execute(f"insert into underline_indicator({columns}) values({values})", info)
-    except sqlite3.Error as e:
-        print(f"Error executing query: {e}")
-        conn.rollback()
-    finally:
-        cursor.close()
+    ######################################################################
+    # the order here determins the order records are inserted!           #
+    # tables with foreign keys should go behind the table it references! #
+    return [                                                             #
+        expiration,                                                      #
+        options,                                                         #
+        underline_discriptor,                                            #
+        underline_indicator,                                             #
+    ]                                                                    #
+    ######################################################################
     # fmt: on
 
 
-def insert_underline_discriptor_data(conn, ticker, columns, values):
-    # fmt: off
+def insert_underline_indicator_data(conn, ticker, columns, values):
     cursor = conn.cursor()
+    info = yf.Ticker(ticker).info
+    info["date"] = datetime.now()
+    underline_discriptor_id = "(select id from underline_discriptor where symbol = ?)"
+
     try:
-        dat = yf.Ticker(ticker)
-        info = dat.info
-        cursor.execute(f"insert into underline_discriptor({columns}) values({values})", info)
+        # fmt: off
+        cursor.execute(f"insert into underline_indicator({columns}) values({values})", info)
+        cursor.execute(f"""update underline_indicator 
+                           set underline_discriptor_id = {underline_discriptor_id} 
+                           where underline_discriptor_id is NULL
+                        """, 
+                       (info["symbol"],))
+        # fmt: on
     except sqlite3.Error as e:
         print(f"Error executing query: {e}")
         conn.rollback()
-    finally:
-        cursor.close()
+
+
+def insert_underline_discriptor_data(conn, ticker, columns, values):
+    cursor = conn.cursor()
+    dat = yf.Ticker(ticker)
+    info = dat.info
+    # fmt: off
+    try:
+        cursor.execute(f"insert into underline_discriptor({columns}) values({values})", info)
+        conn.commit()
+    except sqlite3.Error as e:
+        print(f"Error executing query: {e}")
+        conn.rollback()
     # fmt: on
 
 
 def insert_expiration_data(conn, ticker, columns):
-    # fmt: off
     cursor = conn.cursor()
-    try:
-        dat = yf.Ticker(ticker)
-        expirations = dat.options
-        for expiration in expirations:
+    dat = yf.Ticker(ticker)
+    expirations = dat.options
+    for expiration in expirations:
+        # fmt: off
+        try:
             cursor.execute(f"insert into expiration({columns}) values(?)", (expiration,))
-    except sqlite3.Error as e:
-        print(f"Error executing query: {e}")
-        conn.rollback()
-    finally:
-        cursor.close()
-    # fmt: on
+        except sqlite3.Error as e:
+            print(f"Error executing query: {e}")
+            conn.rollback()
+        # fmt: on
 
 
 def two_dict(data):
@@ -212,13 +231,11 @@ def two_dict(data):
 
 def insert_options_data(conn, ticker, columns, values):
     cursor = conn.cursor()
+    dat = yf.Ticker(ticker)
+    expiration_id = "(select id from expiration where date = ?)"
     try:
-        dat = yf.Ticker(ticker)
         cursor.execute("select date from expiration;")
-        expirations = cursor.fetchall()
-        for expiration in expirations:
-            expiration = expiration[0]
-            expiration_id = "(select id from expiration where date = ?)"
+        for (expiration,) in cursor.fetchall():
 
             calls = two_dict(dat.option_chain(expiration).calls)
             puts = two_dict(dat.option_chain(expiration).puts)
@@ -229,8 +246,8 @@ def insert_options_data(conn, ticker, columns, values):
             cursor.execute(f"""update calls 
                                set expiration_id = {expiration_id} 
                                where expiration_id is null
-                            """,
-                            (expiration,))
+                            """, (expiration,))
+                            
             cursor.execute(f"""update puts 
                                set expiration_id = {expiration_id} 
                                where expiration_id is null
@@ -240,8 +257,6 @@ def insert_options_data(conn, ticker, columns, values):
     except sqlite3.Error as e:
         print(f"Error executing query: {e}")
         conn.rollback()
-    finally:
-        cursor.close()
 
 
 def filter_columns(columns, filters):
@@ -320,12 +335,13 @@ python yf-sqlite3.py :memory: nvda --options --underline \\
         if k == "options":
             if args.options:
                 insert_options_data(conn, ticker, v[0], v[1])
-        if k == "underline_indicator":
-            if args.underline:
-                insert_underline_indicator_data(conn, ticker, v[0], v[1])
         if k == "underline_discriptor":
             if args.underline:
                 insert_underline_discriptor_data(conn, ticker, v[0], v[1])
+        if k == "underline_indicator":
+            if args.underline:
+                insert_underline_indicator_data(conn, ticker, v[0], v[1])
+        conn.commit()
 
     if args.selector:
         run_selector(conn, args.selector)
