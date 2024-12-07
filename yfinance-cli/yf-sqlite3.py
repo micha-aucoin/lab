@@ -8,6 +8,93 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
+data = {
+    "expiration": """
+       :date
+    """,
+    "options": """
+       :contractSymbol,
+       :lastTradeDate,
+       :strike,
+       :lastPrice,
+       :bid,
+       :ask,
+       :change,
+       :percentChange,
+       :volume,
+       :openInterest,
+       :impliedVolatility,
+       :inTheMoney,
+       :contractSize,
+       :currency
+    """,
+    "underline_discriptor": """
+        :currency,
+        :exchange,
+        :quoteType,
+        :symbol,
+        :underlyingSymbol,
+        :shortName,
+        :longName,
+        :timeZoneFullName,
+        :timeZoneShortName,
+        :financialCurrency
+    """,
+    "underline_indicator": """
+        :date,
+        :regularMarketPreviousClose,
+        :regularMarketOpen,
+        :regularMarketDayLow,
+        :regularMarketDayHigh,
+        :dividendRate,
+        :beta,
+        :regularMarketVolume,
+        :averageVolume,
+        :averageVolume10days,
+        :averageDailyVolume10Day,
+        :bid,
+        :ask,
+        :bidSize,
+        :askSize,
+        :marketCap,
+        :fiftyTwoWeekLow,
+        :fiftyTwoWeekHigh,
+        :fiftyDayAverage,
+        :twoHundredDayAverage,
+        :sharesOutstanding,
+        :sharesShort,
+        :sharesShortPriorMonth,
+        :sharesShortPreviousMonthDate,
+        :heldPercentInsiders,
+        :heldPercentInstitutions,
+        :shortRatio,
+        :bookValue,
+        :priceToBook,
+        :enterpriseToRevenue,
+        :enterpriseToEbitda,
+        :"52WeekChange",
+        :SandP52WeekChange,
+        :lastDividendValue,
+        :lastDividendDate,
+        :currentPrice,
+        :targetHighPrice,
+        :targetLowPrice,
+        :targetMeanPrice,
+        :targetMedianPrice,
+        :recommendationMean,
+        :recommendationKey,
+        :numberOfAnalystOpinions,
+        :totalCashPerShare,
+        :quickRatio,
+        :currentRatio,
+        :debtToEquity,
+        :revenuePerShare,
+        :returnOnAssets,
+        :returnOnEquity,
+        :trailingPegRatio
+    """,
+}
+
 
 def connect_db(db_name):
     """Connect to the SQLite database or create it if it doesn't exist."""
@@ -27,7 +114,6 @@ def run_selector(conn, queries):
         print(f"============================= ({query}) =============================")
         try:
             cursor.execute(query)
-            # conn.commit()
             if query.strip().lower().startswith("select"):
                 rows = cursor.fetchall()
                 for row in rows:
@@ -40,137 +126,17 @@ def run_selector(conn, queries):
             conn.rollback()
 
 
-def check_tables_exist(conn):
-    expiration = {
-        "table_name": "expiration",
-        "columns": """
-            id integer primary key autoincrement,
-            date text unique
-        """,
-    }
-    options = {
-        "table_name": "options",
-        "columns": """
-            id integer primary key autoincrement,
-            expiration_id,
-            contractSymbol,
-            lastTradeDate,
-            strike,
-            lastPrice,
-            bid,
-            ask,
-            change,
-            percentChange,
-            volume,
-            openInterest,
-            impliedVolatility,
-            inTheMoney,
-            contractSize,
-            currency,
-            foreign key (expiration_id) references expiration(id)
-        """,
-    }
-    underline_indicator = {
-        "table_name": "underline_indicator",
-        "columns": """
-            id integer primary key autoincrement,
-            underline_discriptor_id,
-            date,
-            regularMarketPreviousClose,
-            regularMarketOpen,
-            regularMarketDayLow,
-            regularMarketDayHigh,
-            dividendRate,
-            beta,
-            regularMarketVolume,
-            averageVolume,
-            averageVolume10days,
-            averageDailyVolume10Day,
-            bid,
-            ask,
-            bidSize,
-            askSize,
-            marketCap,
-            fiftyTwoWeekLow,
-            fiftyTwoWeekHigh,
-            fiftyDayAverage,
-            twoHundredDayAverage,
-            sharesOutstanding,
-            sharesShort,
-            sharesShortPriorMonth,
-            sharesShortPreviousMonthDate,
-            heldPercentInsiders,
-            heldPercentInstitutions,
-            shortRatio,
-            bookValue,
-            priceToBook,
-            enterpriseToRevenue,
-            enterpriseToEbitda,
-            "52WeekChange",
-            SandP52WeekChange,
-            lastDividendValue,
-            lastDividendDate,
-            currentPrice,
-            targetHighPrice,
-            targetLowPrice,
-            targetMeanPrice,
-            targetMedianPrice,
-            recommendationMean,
-            recommendationKey,
-            numberOfAnalystOpinions,
-            totalCashPerShare,
-            quickRatio,
-            currentRatio,
-            debtToEquity,
-            revenuePerShare,
-            returnOnAssets,
-            returnOnEquity,
-            trailingPegRatio,
-            foreign key (underline_discriptor_id) references underline_discriptor(id)
-        """,
-    }
-    underline_discriptor = {
-        "table_name": "underline_discriptor",
-        "columns": """
-            id integer primary key autoincrement,
-            currency,
-            exchange,
-            quoteType,
-            symbol unique,
-            underlyingSymbol unique,
-            shortName unique,
-            longName unique,
-            timeZoneFullName,
-            timeZoneShortName,
-            financialCurrency
-        """,
-    }
-    # unique(symbol, underlyingSymbol, shortName, longName)
+def run_sql_script(conn, sql_script):
     cursor = conn.cursor()
+    with open(sql_script, "r") as file:
+        sql_file = file.read()
     try:
-        # fmt: off
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS expiration({expiration['columns']})")
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS calls({options['columns']})")
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS puts({options['columns']})")
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS underline_indicator({underline_indicator['columns']})")
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS underline_discriptor({underline_discriptor['columns']})")
-        # fmt: on
+        cursor.executescript(sql_file)
     except sqlite3.Error as e:
+        print(f"Error executing script:\n{sql_file}")
+        print()
         print(f"Error executing query: {e}")
         conn.rollback()
-
-    # fmt: off
-    ######################################################################
-    # the order here determins the order records are inserted!           #
-    # tables with foreign keys should go behind the table it references! #
-    return [                                                             #
-        expiration,                                                      #
-        options,                                                         #
-        underline_discriptor,                                            #
-        underline_indicator,                                             #
-    ]                                                                    #
-    ######################################################################
-    # fmt: on
 
 
 def insert_underline_indicator_data(conn, ticker, columns, values):
@@ -259,34 +225,6 @@ def insert_options_data(conn, ticker, columns, values):
         conn.rollback()
 
 
-def filter_columns(columns, filters):
-    filtered = [[], []]
-    for column in columns.splitlines():
-        if column.strip() and not any(f in column for f in filters):
-            column = column.strip(",").split()[0]
-            values = column.strip(",").split()[0].strip('"')
-            filtered[0].append(column)
-            filtered[1].append(f":{values}")
-    return filtered
-
-
-def columns_values(conn):
-    filtered_columns_values = {}
-    for table in check_tables_exist(conn):
-
-        table_name = table["table_name"]
-        columns = table["columns"]
-        filters = ["primary key", "foreign key", "_id"]
-
-        columns, values = filter_columns(columns, filters)
-
-        filtered_columns_values[table_name] = (
-            ", ".join(columns),
-            ", ".join(values),
-        )
-    return filtered_columns_values
-
-
 def main():
     parser = argparse.ArgumentParser(
         prog="yf-cli",
@@ -324,29 +262,44 @@ python yf-sqlite3.py :memory: nvda --options --underline \\
 
     ticker = args.ticker.upper()
 
-    for k, v in columns_values(conn).items():
-        print(f"============================= {k} TABLE =============================")
-        print(f"columns => {v[0]}")
-        print(f"values => {v[1]}")
+    run_sql_script(conn, "create_table.sql")
+
+    for key, _ in data.items():
+        values = map(
+            lambda x: x.replace('"', ""),
+            data[key].splitlines(),
+        )
+        columns = map(
+            lambda x: x.replace(":", ""),
+            data[key].splitlines(),
+        )
+        columns = "\n\t".join(columns)
+        values = "\n\t".join(values)
+
+        # fmt: off
+        print(f"============================= {key} TABLE =============================")
+        print(f"columns => {columns}")
+        print(f"values => {values}")
         print()
-        if k == "expiration":
-            if args.options:
-                insert_expiration_data(conn, ticker, v[0])
-        if k == "options":
-            if args.options:
-                insert_options_data(conn, ticker, v[0], v[1])
-        if k == "underline_discriptor":
-            if args.underline:
-                insert_underline_discriptor_data(conn, ticker, v[0], v[1])
-        if k == "underline_indicator":
-            if args.underline:
-                insert_underline_indicator_data(conn, ticker, v[0], v[1])
+        # fmt: on
+
+        if args.options:
+            if key == "expiration":
+                insert_expiration_data(conn, ticker, columns)
+            if key == "options":
+                insert_options_data(conn, ticker, columns, values)
+
+        if args.underline:
+            if key == "underline_discriptor":
+                insert_underline_discriptor_data(conn, ticker, columns, values)
+            if key == "underline_indicator":
+                insert_underline_indicator_data(conn, ticker, columns, values)
+
         conn.commit()
 
     if args.selector:
         run_selector(conn, args.selector)
 
-    print()
     conn.close()
 
 
