@@ -26,11 +26,15 @@ if __name__ == "__main__":
             """\
         Example usage:
         --------------
-        cat text.txt; \\
-        echo '-----------------------'; \\
-        echo '^^^^^^_old_|_new_vvvvvv'; \\
-        echo '-----------------------'; \\
-        python lookup.py '^-' text.txt
+        echo
+        echo
+        echo '====================================='; \\
+        cat text.txt                                ; \\
+        echo '-------------------------------------'; \\
+        echo '^^^^^^^^^^^^ OLD | NEW vvvvvvvvvvvvvv'; \\
+        echo '-------------------------------------'; \\
+        python lookup.py '^-' text.txt              ; \\
+        echo '====================================='
             """
         ),
     )
