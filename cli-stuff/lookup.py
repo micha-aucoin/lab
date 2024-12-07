@@ -24,13 +24,13 @@ if __name__ == "__main__":
         description="Filter document lines.",
         epilog=textwrap.dedent(
             """\
-    Example usage:
-    --------------
-    cat text.txt; \\
-    echo '-----------------------'; \\
-    echo '^^^^^^_old_|_new_vvvvvv'; \\
-    echo '-----------------------'; \\
-    python lookup.py '^-' text.txt
+        Example usage:
+        --------------
+        cat text.txt; \\
+        echo '-----------------------'; \\
+        echo '^^^^^^_old_|_new_vvvvvv'; \\
+        echo '-----------------------'; \\
+        python lookup.py '^-' text.txt
             """
         ),
     )
