@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import sqlite3
 import sys
 import textwrap
@@ -8,7 +9,7 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
-data = {
+sql_columns = {
     "expiration": """
        :date
     """,
@@ -100,6 +101,7 @@ def connect_db(db_name):
     """Connect to the SQLite database or create it if it doesn't exist."""
     try:
         conn = sqlite3.connect(db_name)
+        conn.execute("PRAGMA foreign_keys = ON;")
         return conn
     except sqlite3.Error as e:
         print(f"Error connecting to database: {e}")
@@ -126,8 +128,7 @@ def run_selector(conn, queries):
             conn.rollback()
 
 
-def run_sql_script(conn, sql_script):
-    cursor = conn.cursor()
+def run_sql_script(cursor, sql_script):
     with open(sql_script, "r") as file:
         sql_file = file.read()
     try:
@@ -139,90 +140,111 @@ def run_sql_script(conn, sql_script):
         conn.rollback()
 
 
-def insert_underline_indicator_data(conn, ticker, columns, values):
+def create_sql_insert(table, columns, params=None):
+    if params is not None:
+        return f"INSERT INTO {table}({columns}) VALUES({params})"
+    return f"INSERT INTO {table}({columns}) VALUES(?)"
+
+
+def create_sql_update_fk(table, foreign_table, conditional):
+    return f"""UPDATE {table}
+               SET {foreign_table}_id = (
+                   SELECT ID FROM {foreign_table} 
+                   WHERE {conditional} = ?
+               )
+               WHERE {foreign_table}_id IS NULL
+            """
+
+
+def insert_underline_indicator_data(conn, dat, columns, params):
     cursor = conn.cursor()
-    info = yf.Ticker(ticker).info
-    info["date"] = datetime.now()
-    underline_discriptor_id = "(select id from underline_discriptor where symbol = ?)"
-
-    try:
-        # fmt: off
-        cursor.execute(f"insert into underline_indicator({columns}) values({values})", info)
-        cursor.execute(f"""update underline_indicator 
-                           set underline_discriptor_id = {underline_discriptor_id} 
-                           where underline_discriptor_id is NULL
-                        """, 
-                       (info["symbol"],))
-        # fmt: on
-    except sqlite3.Error as e:
-        print(f"Error executing query: {e}")
-        conn.rollback()
-
-
-def insert_underline_discriptor_data(conn, ticker, columns, values):
-    cursor = conn.cursor()
-    dat = yf.Ticker(ticker)
     info = dat.info
-    # fmt: off
+    info["date"] = datetime.now()
+
+    insert_sql = create_sql_insert("underline_indicator", columns, params)
+
+    update_foreign_key = create_sql_update_fk(
+        table="underline_indicator",
+        foreign_table="underline_discriptor",
+        conditional="symbol",
+    )
+
     try:
-        cursor.execute(f"insert into underline_discriptor({columns}) values({values})", info)
-        conn.commit()
+        cursor.execute(insert_sql, info)
+        cursor.execute(update_foreign_key, (info["symbol"],))
     except sqlite3.Error as e:
         print(f"Error executing query: {e}")
         conn.rollback()
-    # fmt: on
 
 
-def insert_expiration_data(conn, ticker, columns):
+def insert_underline_discriptor_data(conn, dat, columns, params):
     cursor = conn.cursor()
-    dat = yf.Ticker(ticker)
-    expirations = dat.options
-    for expiration in expirations:
-        # fmt: off
+    info = dat.info
+    insert_sql = create_sql_insert("underline_discriptor", columns, params)
+
+    try:
+        cursor.execute(insert_sql, info)
+    except sqlite3.Error as e:
+        print(f"Error executing query: {e}")
+        conn.rollback()
+
+
+def insert_expiration_data(conn, dat, columns):
+    cursor = conn.cursor()
+    insert_sql = create_sql_insert("expiration", columns)
+
+    for expiration in dat.options:
         try:
-            cursor.execute(f"insert into expiration({columns}) values(?)", (expiration,))
+            cursor.execute(insert_sql, (expiration,))
         except sqlite3.Error as e:
             print(f"Error executing query: {e}")
             conn.rollback()
-        # fmt: on
 
 
-def two_dict(data):
+def dataframe_to_dict(data):
     if isinstance(data, pd.DataFrame):
-        for col in data.columns:
-            if pd.api.types.is_datetime64_any_dtype(data[col]):
-                data[col] = data[col].dt.strftime("%Y-%m-%d %H:%M:%S")
+        is_datetime_col = filter(
+            lambda x: pd.api.types.is_datetime64_any_dtype(data[x]),
+            data.columns,
+        )
+        for col in is_datetime_col:
+            data[col] = data[col].dt.strftime("%Y-%m-%d %H:%M:%S")
         return data.to_dict(orient="records")
 
 
-def insert_options_data(conn, ticker, columns, values):
+def insert_options_data(conn, dat, columns, params):
     cursor = conn.cursor()
-    dat = yf.Ticker(ticker)
-    expiration_id = "(select id from expiration where date = ?)"
-    try:
-        cursor.execute("select date from expiration;")
-        for (expiration,) in cursor.fetchall():
 
-            calls = two_dict(dat.option_chain(expiration).calls)
-            puts = two_dict(dat.option_chain(expiration).puts)
-            cursor.executemany(f"insert into calls({columns}) values({values})", calls)
-            cursor.executemany(f"insert into puts({columns}) values({values})", puts)
+    cursor.execute("select date from expiration;")
+    for (expiration,) in cursor.fetchall():
 
-            # fmt: off
-            cursor.execute(f"""update calls 
-                               set expiration_id = {expiration_id} 
-                               where expiration_id is null
-                            """, (expiration,))
-                            
-            cursor.execute(f"""update puts 
-                               set expiration_id = {expiration_id} 
-                               where expiration_id is null
-                            """, 
-                            (expiration,))
-            # fmt: on
-    except sqlite3.Error as e:
-        print(f"Error executing query: {e}")
-        conn.rollback()
+        try:
+            calls = dataframe_to_dict(dat.option_chain(expiration).calls)
+            puts = dataframe_to_dict(dat.option_chain(expiration).puts)
+
+            cursor.executemany(create_sql_insert("calls", columns, params), calls)
+            cursor.executemany(create_sql_insert("puts", columns, params), puts)
+
+            cursor.execute(
+                create_sql_update_fk(
+                    table="calls",
+                    foreign_table="expiration",
+                    conditional="date",
+                ),
+                (expiration,),
+            )
+            cursor.execute(
+                create_sql_update_fk(
+                    table="puts",
+                    foreign_table="expiration",
+                    conditional="date",
+                ),
+                (expiration,),
+            )
+
+        except sqlite3.Error as e:
+            print(f"Error executing query: {e}")
+            conn.rollback()
 
 
 def main():
@@ -258,42 +280,44 @@ python yf-sqlite3.py :memory: nvda --options --underline \\
     # fmt: on
 
     args = parser.parse_args()
+
     conn = connect_db(args.db)
 
-    ticker = args.ticker.upper()
+    dat = yf.Ticker(args.ticker.upper())
 
     run_sql_script(conn, "create_table.sql")
+    print(conn.cursor().description)
 
-    for key, _ in data.items():
-        values = map(
-            lambda x: x.replace('"', ""),
-            data[key].splitlines(),
+    for key, _ in sql_columns.items():
+        params = map(
+            lambda x: re.sub(r'"', "", x),
+            sql_columns[key].splitlines(),
         )
         columns = map(
-            lambda x: x.replace(":", ""),
-            data[key].splitlines(),
+            lambda x: re.sub(r":", "", x),
+            sql_columns[key].splitlines(),
         )
         columns = "\n\t".join(columns)
-        values = "\n\t".join(values)
+        params = "\n\t".join(params)
 
         # fmt: off
         print(f"============================= {key} TABLE =============================")
         print(f"columns => {columns}")
-        print(f"values => {values}")
+        print(f"params => {params}")
         print()
         # fmt: on
 
         if args.options:
             if key == "expiration":
-                insert_expiration_data(conn, ticker, columns)
+                insert_expiration_data(conn, dat, columns)
             if key == "options":
-                insert_options_data(conn, ticker, columns, values)
+                insert_options_data(conn, dat, columns, params)
 
         if args.underline:
             if key == "underline_discriptor":
-                insert_underline_discriptor_data(conn, ticker, columns, values)
+                insert_underline_discriptor_data(conn, dat, columns, params)
             if key == "underline_indicator":
-                insert_underline_indicator_data(conn, ticker, columns, values)
+                insert_underline_indicator_data(conn, dat, columns, params)
 
         conn.commit()
 

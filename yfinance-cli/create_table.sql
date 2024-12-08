@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS calls(
     inTheMoney,
     contractSize,
     currency,
-    foreign key (expiration_id) references expiration(id)
+    foreign key (expiration_id) references expiration(id) on update cascade on delete cascade
 );
 CREATE TABLE IF NOT EXISTS puts(
     id integer primary key autoincrement,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS puts(
     inTheMoney,
     contractSize,
     currency,
-    foreign key (expiration_id) references expiration(id)
+    foreign key (expiration_id) references expiration(id) on update cascade on delete cascade
 );
 CREATE TABLE IF NOT EXISTS underline_indicator(
     id integer primary key autoincrement,
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS underline_indicator(
     returnOnAssets,
     returnOnEquity,
     trailingPegRatio,
-    foreign key (underline_discriptor_id) references underline_discriptor(id)
+    foreign key (underline_discriptor_id) references underline_discriptor(id) on update cascade on delete cascade
 );
 CREATE TABLE IF NOT EXISTS underline_discriptor(
     id integer primary key autoincrement,
