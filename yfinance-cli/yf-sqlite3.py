@@ -9,93 +9,6 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
-sql_columns = {
-    "expiration": """
-       :date
-    """,
-    "options": """
-       :contractSymbol,
-       :lastTradeDate,
-       :strike,
-       :lastPrice,
-       :bid,
-       :ask,
-       :change,
-       :percentChange,
-       :volume,
-       :openInterest,
-       :impliedVolatility,
-       :inTheMoney,
-       :contractSize,
-       :currency
-    """,
-    "underline_discriptor": """
-        :currency,
-        :exchange,
-        :quoteType,
-        :symbol,
-        :underlyingSymbol,
-        :shortName,
-        :longName,
-        :timeZoneFullName,
-        :timeZoneShortName,
-        :financialCurrency
-    """,
-    "underline_indicator": """
-        :date,
-        :regularMarketPreviousClose,
-        :regularMarketOpen,
-        :regularMarketDayLow,
-        :regularMarketDayHigh,
-        :dividendRate,
-        :beta,
-        :regularMarketVolume,
-        :averageVolume,
-        :averageVolume10days,
-        :averageDailyVolume10Day,
-        :bid,
-        :ask,
-        :bidSize,
-        :askSize,
-        :marketCap,
-        :fiftyTwoWeekLow,
-        :fiftyTwoWeekHigh,
-        :fiftyDayAverage,
-        :twoHundredDayAverage,
-        :sharesOutstanding,
-        :sharesShort,
-        :sharesShortPriorMonth,
-        :sharesShortPreviousMonthDate,
-        :heldPercentInsiders,
-        :heldPercentInstitutions,
-        :shortRatio,
-        :bookValue,
-        :priceToBook,
-        :enterpriseToRevenue,
-        :enterpriseToEbitda,
-        :"52WeekChange",
-        :SandP52WeekChange,
-        :lastDividendValue,
-        :lastDividendDate,
-        :currentPrice,
-        :targetHighPrice,
-        :targetLowPrice,
-        :targetMeanPrice,
-        :targetMedianPrice,
-        :recommendationMean,
-        :recommendationKey,
-        :numberOfAnalystOpinions,
-        :totalCashPerShare,
-        :quickRatio,
-        :currentRatio,
-        :debtToEquity,
-        :revenuePerShare,
-        :returnOnAssets,
-        :returnOnEquity,
-        :trailingPegRatio
-    """,
-}
-
 
 def connect_db(db_name):
     """Connect to the SQLite database or create it if it doesn't exist."""
@@ -218,13 +131,12 @@ def insert_options_data(conn, dat, columns, params):
     cursor.execute("select date from expiration;")
     for (expiration,) in cursor.fetchall():
 
-        try:
-            calls = dataframe_to_dict(dat.option_chain(expiration).calls)
-            puts = dataframe_to_dict(dat.option_chain(expiration).puts)
+        calls = dataframe_to_dict(dat.option_chain(expiration).calls)
+        puts = dataframe_to_dict(dat.option_chain(expiration).puts)
 
+        try:
             cursor.executemany(create_sql_insert("calls", columns, params), calls)
             cursor.executemany(create_sql_insert("puts", columns, params), puts)
-
             cursor.execute(
                 create_sql_update_fk(
                     table="calls",
@@ -241,10 +153,22 @@ def insert_options_data(conn, dat, columns, params):
                 ),
                 (expiration,),
             )
-
         except sqlite3.Error as e:
             print(f"Error executing query: {e}")
             conn.rollback()
+
+
+def list_columns(conn):
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [table[0] for table in cursor.fetchall()]
+    all_columns = {}
+    for table in tables:
+        if not table == "sqlite_sequence":
+            cursor.execute(f"PRAGMA table_info({table});")
+            columns = [col[1] for col in cursor.fetchall()]
+            all_columns[table] = columns
+    return all_columns
 
 
 def main():
@@ -286,19 +210,22 @@ python yf-sqlite3.py :memory: nvda --options --underline \\
     dat = yf.Ticker(args.ticker.upper())
 
     run_sql_script(conn, "create_table.sql")
-    print(conn.cursor().description)
-
-    for key, _ in sql_columns.items():
+    for key, columns in list_columns(conn).items():
+        filtered_columns = filter(
+            lambda x: not re.match(".*id.*", x),
+            columns,
+        )
+        filtered_columns = list(filtered_columns)
         params = map(
-            lambda x: re.sub(r'"', "", x),
-            sql_columns[key].splitlines(),
+            lambda x: f":{x}",
+            filtered_columns,
         )
         columns = map(
-            lambda x: re.sub(r":", "", x),
-            sql_columns[key].splitlines(),
+            lambda x: f'"{x}"' if x[0].isdigit() else x,
+            filtered_columns,
         )
-        columns = "\n\t".join(columns)
-        params = "\n\t".join(params)
+        columns = ", ".join(columns)
+        params = ", ".join(params)
 
         # fmt: off
         print(f"============================= {key} TABLE =============================")
@@ -310,7 +237,7 @@ python yf-sqlite3.py :memory: nvda --options --underline \\
         if args.options:
             if key == "expiration":
                 insert_expiration_data(conn, dat, columns)
-            if key == "options":
+            if key == "calls":
                 insert_options_data(conn, dat, columns, params)
 
         if args.underline:

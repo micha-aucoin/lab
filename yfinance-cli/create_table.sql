@@ -40,6 +40,19 @@ CREATE TABLE IF NOT EXISTS puts(
     currency,
     foreign key (expiration_id) references expiration(id) on update cascade on delete cascade
 );
+CREATE TABLE IF NOT EXISTS underline_discriptor(
+    id integer primary key autoincrement,
+    currency,
+    exchange,
+    quoteType,
+    symbol unique,
+    underlyingSymbol unique,
+    shortName unique,
+    longName unique,
+    timeZoneFullName,
+    timeZoneShortName,
+    financialCurrency
+);
 CREATE TABLE IF NOT EXISTS underline_indicator(
     id integer primary key autoincrement,
     underline_discriptor_id,
@@ -95,17 +108,4 @@ CREATE TABLE IF NOT EXISTS underline_indicator(
     returnOnEquity,
     trailingPegRatio,
     foreign key (underline_discriptor_id) references underline_discriptor(id) on update cascade on delete cascade
-);
-CREATE TABLE IF NOT EXISTS underline_discriptor(
-    id integer primary key autoincrement,
-    currency,
-    exchange,
-    quoteType,
-    symbol unique,
-    underlyingSymbol unique,
-    shortName unique,
-    longName unique,
-    timeZoneFullName,
-    timeZoneShortName,
-    financialCurrency
 );
