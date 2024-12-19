@@ -1,0 +1,92 @@
+CREATE TABLE IF NOT EXISTS expirations(
+    id INTEGER primary key autoincrement,
+    created_at INTEGER,
+    date TEXT unique
+);
+
+CREATE TABLE IF NOT EXISTS underline_info(
+    id INTEGER primary key autoincrement,
+    created_at INTEGER,
+    currency TEXT,
+    exchange TEXT,
+    quoteType TEXT,
+    symbol UNIQUE,
+    underlyingSymbol UNIQUE,
+    shortName UNIQUE,
+    longName UNIQUE,
+    timeZoneFullName TEXT,
+    timeZoneShortName TEXT,
+    financialCurrency TEXT
+);
+
+CREATE TABLE IF NOT EXISTS underline_indicators(
+    id INTEGER primary key autoincrement,
+    underline_info_id INTEGER,
+    created_at INTEGER,
+    updated_at INTEGER,
+    deleted_at INTEGER,
+    regularMarketPreviousClose INTEGER,
+    regularMarketOpen INTEGER,
+    regularMarketDayLow INTEGER,
+    regularMarketDayHigh INTEGER,
+    dividendRate INTEGER,
+    beta INTEGER,
+    regularMarketVolume INTEGER,
+    averageVolume INTEGER,
+    averageVolume10days INTEGER,
+    averageDailyVolume10Day INTEGER,
+    bid INTEGER,
+    ask INTEGER,
+    bidSize INTEGER,
+    askSize INTEGER,
+    marketCap INTEGER,
+    fiftyTwoWeekLow INTEGER,
+    fiftyTwoWeekHigh INTEGER,
+    fiftyDayAverage INTEGER,
+    twoHundredDayAverage INTEGER,
+    sharesOutstanding INTEGER,
+    sharesShort INTEGER,
+    sharesShortPriorMonth INTEGER,
+    sharesShortPreviousMonthDate INTEGER,
+    heldPercentInsiders INTEGER,
+    heldPercentInstitutions INTEGER,
+    shortRatio INTEGER,
+    bookValue INTEGER,
+    priceToBook INTEGER,
+    enterpriseToRevenue INTEGER,
+    enterpriseToEbitda INTEGER,
+    "52WeekChange" INTEGER,
+    SandP52WeekChange INTEGER,
+    lastDividendValue INTEGER,
+    lastDividendDate INTEGER,
+    currentPrice INTEGER,
+    targetHighPrice INTEGER,
+    targetLowPrice INTEGER,
+    targetMeanPrice INTEGER,
+    targetMedianPrice INTEGER,
+    recommendationMean TEXT,
+    recommendationKey INTEGER,
+    numberOfAnalystOpinions INTEGER,
+    totalCashPerShare INTEGER,
+    quickRatio INTEGER,
+    currentRatio INTEGER,
+    debtToEquity INTEGER,
+    revenuePerShare INTEGER,
+    returnOnAssets INTEGER,
+    returnOnEquity INTEGER,
+    trailingPegRatio INTEGER,
+    foreign key (underline_info_id) references underline_info(id)
+);
+
+CREATE TABLE IF NOT EXISTS options(
+    id INTEGER primary key autoincrement,
+    created_at INTEGER,
+    expiration_id INTEGER,
+    underline_indicators_id INTEGER,
+    underline_info_id INTEGER,
+    calls TEXT,
+    puts TEXT,
+    foreign key (expiration_id) references expirations(id)
+    foreign key (underline_indicators_id) references underline_indicators(id)
+    foreign key (underline_info_id) references underline_info(id)
+);
