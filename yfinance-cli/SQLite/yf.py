@@ -77,37 +77,15 @@ def decode_object(data: str) -> object:
 
 
 # fmt: off
-def get_calls(conn, expiration_date, symbol):
+def get_options(conn, option, expiration_date, symbol):
     cursor = conn.cursor()
-    query = "SELECT calls FROM options WHERE expiration_id = (SELECT id FROM expirations WHERE date = ?) AND underline_info_id = (SELECT id FROM underline_info WHERE symbol = ?)"
+    query = f"SELECT {option} FROM options WHERE expiration_id = (SELECT id FROM expirations WHERE date = ?) AND underline_info_id = (SELECT id FROM underline_info WHERE symbol = ?)"
     print()
     print(f'cursor.execute({query}, ({expiration_date}, {symbol}))')
     print()
     try:
         cursor.execute(query, (expiration_date, symbol))
-        calls = decode_object(cursor.fetchone()[0])
-        rows = cursor.fetchall()
-        print(calls)
-        print(type(calls))
-        print()
-        print(encode_object(calls))
-    except sqlite3.Error as e:
-        print(f"Error executing query: {e}")
-        conn.rollback()
-# fmt: on
-
-
-# fmt: off
-def get_puts(conn, expiration_date, symbol):
-    cursor = conn.cursor()
-    query = "SELECT puts FROM options WHERE expiration_id = (SELECT id FROM expirations WHERE date = ?) AND underline_info_id = (SELECT id FROM underline_info WHERE symbol = ?)"
-    print()
-    print(f'cursor.execute({query}, ({expiration_date}, {symbol}))')
-    print()
-    try:
-        cursor.execute(query, (expiration_date, symbol))
-        puts = decode_object(cursor.fetchone()[0])
-        print(puts)
+        return decode_object(cursor.fetchone()[0])
     except sqlite3.Error as e:
         print(f"Error executing query: {e}")
         conn.rollback()
@@ -126,9 +104,6 @@ def get_expiration_dates(conn):
     except sqlite3.Error as e:
         print(f"Error executing query: {e}")
         conn.rollback()
-
-
-# fmt: on
 
 
 def main():
@@ -165,20 +140,24 @@ def main():
     # ===============================================================================
     if args.get_calls:
         expiration_data, ticker = args.get_calls
-        get_calls(
+        calls = get_options(
             conn=conn,
+            option="calls",
             expiration_date=expiration_data,
             symbol=ticker.upper(),
         )
+        print(calls)
 
     # ===============================================================================
     if args.get_puts:
-        expiration_data, ticker = args.get_puts
-        get_puts(
+        expiration_data, ticker = args.get_calls
+        puts = get_options(
             conn=conn,
+            option="puts",
             expiration_date=expiration_data,
             symbol=ticker.upper(),
         )
+        print(puts)
 
     # ===============================================================================
     # fmt: off

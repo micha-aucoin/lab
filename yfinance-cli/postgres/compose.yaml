@@ -1,0 +1,59 @@
+services:
+  yahoo-finance:
+    build: .
+    image: yahoo-finance
+    container_name: yahoo-finance
+    command: ["sh", "-c", "python yf.py --pull_from_yahoo msft; tail -f > /dev/null"]
+    env_file:
+      - .env-example
+    networks:
+      - yahoo-finance-net
+    depends_on:
+      yf-db:
+        condition: service_healthy
+    restart: "no"
+
+  yf-db:
+    image: bitnami/postgresql:13
+    container_name: yf-db
+    environment:
+      - POSTGRESQL_USERNAME=yf
+      - POSTGRESQL_PASSWORD=yfPass123
+      - POSTGRESQL_DATABASE=yf_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data-new:/bitnami/postgresql
+    networks:
+      - yahoo-finance-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yf -d yf_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:4.23
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pgadmin.com
+      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - 15432:80
+    volumes:
+      - pgadmin-new:/var/lib/pgadmin
+    depends_on:
+      - yf-db
+    networks:
+      - yahoo-finance-net
+
+volumes:
+  pg-data-new:
+    name: pg-data-new
+  pgadmin-new:
+    name: pgadmin-new
+
+networks:
+  yahoo-finance-net:
+    name: yahoo-finance-net
