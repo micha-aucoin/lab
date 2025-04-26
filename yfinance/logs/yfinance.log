@@ -1,0 +1,26 @@
+2025-04-26T14:59:37-0500 [DEBUG|yf|287] ('34ae32ef-8838-4e23-966d-d1dada230ba7', 'put', '9887cefe-52d6-4c99-8420-150b8b53bf5f', 'ea97387d-f3b3-42a5-8fcf-bd46b6d49fcb', '439b4bc9-9d09-413e-8a4c-9a4486db9075', 'SPY271217P00770000', 1739390095000, 770.0, 165.85, 207.0, 211.89, 0.0, 0.0, None, 0, 1e-05, True, 'REGULAR', 'USD')
+2025-04-26T14:59:37-0500 [DEBUG|yf|286] 
+            INSERT INTO options_info(id, option_type, expiration_id, metadata_id, market_info_id, contractSymbol, lastTradeDate, strike, lastPrice, bid, ask, change, percentChange, volume, openInterest, impliedVolatility, inTheMoney, contractSize, currency)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            
+2025-04-26T14:59:37-0500 [DEBUG|yf|287] ('c8db9e82-42d3-43cd-a25b-19b4795ef91c', 'put', '9887cefe-52d6-4c99-8420-150b8b53bf5f', 'ea97387d-f3b3-42a5-8fcf-bd46b6d49fcb', '439b4bc9-9d09-413e-8a4c-9a4486db9075', 'SPY271217P00775000', 1741017443000, 775.0, 181.9, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 1e-05, True, 'REGULAR', 'USD')
+2025-04-26T14:59:37-0500 [DEBUG|yf|286] 
+            INSERT INTO options_info(id, option_type, expiration_id, metadata_id, market_info_id, contractSymbol, lastTradeDate, strike, lastPrice, bid, ask, change, percentChange, volume, openInterest, impliedVolatility, inTheMoney, contractSize, currency)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            
+2025-04-26T14:59:37-0500 [DEBUG|yf|287] ('3e9ae830-5acf-4b5d-9e4c-57d88903bed7', 'put', '9887cefe-52d6-4c99-8420-150b8b53bf5f', 'ea97387d-f3b3-42a5-8fcf-bd46b6d49fcb', '439b4bc9-9d09-413e-8a4c-9a4486db9075', 'SPY271217P00900000', 1743690844000, 900.0, 356.8, 346.75, 351.5, 0.0, 0.0, 1.0, 0, 0.1637046521, True, 'REGULAR', 'USD')
+2025-04-26T14:59:37-0500 [DEBUG|yf|286] 
+            INSERT INTO options_info(id, option_type, expiration_id, metadata_id, market_info_id, contractSymbol, lastTradeDate, strike, lastPrice, bid, ask, change, percentChange, volume, openInterest, impliedVolatility, inTheMoney, contractSize, currency)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            
+2025-04-26T14:59:37-0500 [DEBUG|yf|287] ('096a9c26-3b6e-43f2-adc7-9dbcbf544df7', 'put', '9887cefe-52d6-4c99-8420-150b8b53bf5f', 'ea97387d-f3b3-42a5-8fcf-bd46b6d49fcb', '439b4bc9-9d09-413e-8a4c-9a4486db9075', 'SPY271217P00905000', 1739987709000, 905.0, 293.1, 338.12, 343.0, 0.0, 0.0, None, 0, 1e-05, True, 'REGULAR', 'USD')
+2025-04-26T14:59:37-0500 [DEBUG|yf|286] 
+            INSERT INTO options_info(id, option_type, expiration_id, metadata_id, market_info_id, contractSymbol, lastTradeDate, strike, lastPrice, bid, ask, change, percentChange, volume, openInterest, impliedVolatility, inTheMoney, contractSize, currency)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            
+2025-04-26T14:59:37-0500 [DEBUG|yf|287] ('75990ea1-94ae-4d35-bc58-a4bfccdbf3dd', 'put', '9887cefe-52d6-4c99-8420-150b8b53bf5f', 'ea97387d-f3b3-42a5-8fcf-bd46b6d49fcb', '439b4bc9-9d09-413e-8a4c-9a4486db9075', 'SPY271217P00910000', 1743707799000, 910.0, 370.23, 356.75, 361.5, 0.0, 0.0, 1.0, 0, 0.166603793, True, 'REGULAR', 'USD')
+2025-04-26T14:59:37-0500 [DEBUG|yf|286] 
+            INSERT INTO options_info(id, option_type, expiration_id, metadata_id, market_info_id, contractSymbol, lastTradeDate, strike, lastPrice, bid, ask, change, percentChange, volume, openInterest, impliedVolatility, inTheMoney, contractSize, currency)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            
+2025-04-26T14:59:37-0500 [DEBUG|yf|287] ('8c2bebd1-c381-45db-bd02-6bc94598a350', 'put', '9887cefe-52d6-4c99-8420-150b8b53bf5f', 'ea97387d-f3b3-42a5-8fcf-bd46b6d49fcb', '439b4bc9-9d09-413e-8a4c-9a4486db9075', 'SPY271217P00915000', 1745609291000, 915.0, 364.28, 361.75, 366.5, -4.5599976, -1.2363079, 20.0, 31, 0.1680533635, True, 'REGULAR', 'USD')
