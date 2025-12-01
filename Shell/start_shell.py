@@ -52,6 +52,7 @@ class TokenState(Enum):
     DEFAULT = 0
     IN_SINGLE_QUOTE = 1
     IN_DOUBLE_QUOTE = 2
+    BACKSLASH = 3
 
 
 class Shell:
@@ -80,50 +81,50 @@ class Shell:
 
         for char in line:
             # breakpoint()  # uncomment for debuggin
-            # --------------------------------------
-            # State: IN_SINGLE_QUOTE
-            # --------------------------------------
-            if state is TokenState.IN_SINGLE_QUOTE:
-                if char == "'":
-                    # closing the quote, go back to default
+            match state:
+                case TokenState.IN_SINGLE_QUOTE:
+                    if char == "'":
+                        # closing the quote, go back to default
+                        state = TokenState.DEFAULT
+                    else:
+                        # while in quotes append all characters to staging
+                        staging_tokens.append(char)
+
+                case TokenState.IN_DOUBLE_QUOTE:
+                    if char == '"':
+                        # closing the quote, go back to default
+                        state = TokenState.DEFAULT
+                    else:
+                        # while in quotes append all characters to staging
+                        staging_tokens.append(char)
+
+                case TokenState.BACKSLASH:
                     state = TokenState.DEFAULT
-                else:
-                    # while in quotes append all characters to staging
                     staging_tokens.append(char)
-                continue
-            # --------------------------------------
-            # State: IN_DOUBLE_QUOTE
-            # --------------------------------------
-            if state is TokenState.IN_DOUBLE_QUOTE:
-                if char == '"':
-                    # closing the quote, go back to default
-                    state = TokenState.DEFAULT
-                else:
-                    # while in quotes append all characters to staging
-                    staging_tokens.append(char)
-                continue
-            # --------------------------------------
-            # State: DEFAULT
-            # --------------------------------------
-            if char.isspace():
-                # end of token
-                if staging_tokens:
-                    final_tokens.append("".join(staging_tokens))
-                    staging_tokens = []
-                continue
-            if char == "'":
-                # enter single quote state
-                state = TokenState.IN_SINGLE_QUOTE
-                continue
-            if char == '"':
-                # enter double quote state
-                state = TokenState.IN_DOUBLE_QUOTE
-                continue
-            if char == "~" and not staging_tokens:
-                staging_tokens.extend(home)
-                continue
-            # append normal characters outside key characters
-            staging_tokens.append(char)
+
+                case TokenState.DEFAULT:
+                    match char:
+                        case " " if staging_tokens:
+                            # end of token
+                            final_tokens.append("".join(staging_tokens))
+                            staging_tokens = []
+                        case " ":
+                            # ignore spaces with no current token
+                            pass
+                        case "'":
+                            # enter single quote state
+                            state = TokenState.IN_SINGLE_QUOTE
+                        case '"':
+                            # enter double quote state
+                            state = TokenState.IN_DOUBLE_QUOTE
+                        case "\\":
+                            # enter backslash state
+                            state = TokenState.BACKSLASH
+                        case "~":
+                            staging_tokens.extend(home)
+                        case _:
+                            # append normal characters outside key characters
+                            staging_tokens.append(char)
 
         # end of line: flush staging tokens
         if staging_tokens:
