@@ -52,7 +52,8 @@ class TokenState(Enum):
     DEFAULT = 0
     IN_SINGLE_QUOTE = 1
     IN_DOUBLE_QUOTE = 2
-    BACKSLASH = 3
+    DEFAULT_BACKSLASH = 3
+    BACKSLASH_IN_DOUBLE_QUOTE = 4
 
 
 class Shell:
@@ -63,13 +64,10 @@ class Shell:
 
     def parse(self, line: str) -> bool:
         tokens = self._tokenizer(line=line)
-
         if not tokens:
             return False
-
         self.command = tokens[0]
         self.args = tokens[1:]
-
         return True
 
     def _tokenizer(self, line: str) -> list[str]:
@@ -80,28 +78,8 @@ class Shell:
         home: str = os.environ.get("HOME", "")
 
         for char in line:
-            # breakpoint()  # uncomment for debuggin
+            # breakpoint() # uncomment for debuggin
             match state:
-                case TokenState.IN_SINGLE_QUOTE:
-                    if char == "'":
-                        # closing the quote, go back to default
-                        state = TokenState.DEFAULT
-                    else:
-                        # while in quotes append all characters to staging
-                        staging_tokens.append(char)
-
-                case TokenState.IN_DOUBLE_QUOTE:
-                    if char == '"':
-                        # closing the quote, go back to default
-                        state = TokenState.DEFAULT
-                    else:
-                        # while in quotes append all characters to staging
-                        staging_tokens.append(char)
-
-                case TokenState.BACKSLASH:
-                    state = TokenState.DEFAULT
-                    staging_tokens.append(char)
-
                 case TokenState.DEFAULT:
                     match char:
                         case " " if staging_tokens:
@@ -109,7 +87,7 @@ class Shell:
                             final_tokens.append("".join(staging_tokens))
                             staging_tokens = []
                         case " ":
-                            # ignore spaces with no current token
+                            # ignore spaces with no current tokens
                             pass
                         case "'":
                             # enter single quote state
@@ -119,12 +97,60 @@ class Shell:
                             state = TokenState.IN_DOUBLE_QUOTE
                         case "\\":
                             # enter backslash state
-                            state = TokenState.BACKSLASH
+                            state = TokenState.DEFAULT_BACKSLASH
                         case "~":
                             staging_tokens.extend(home)
                         case _:
                             # append normal characters outside key characters
                             staging_tokens.append(char)
+
+                case TokenState.IN_SINGLE_QUOTE:
+                    match char:
+                        case "'":
+                            # closing the quote, go back to default
+                            state = TokenState.DEFAULT
+                        case _:
+                            # while in quotes append all characters to staging
+                            staging_tokens.append(char)
+
+                case TokenState.IN_DOUBLE_QUOTE:
+                    match char:
+                        case '"':
+                            # closing the quote, return to default
+                            state = TokenState.DEFAULT
+                        case "\\":
+                            # enter backslash state
+                            state = TokenState.BACKSLASH_IN_DOUBLE_QUOTE
+                        case _:
+                            # while in quotes append all characters to staging
+                            staging_tokens.append(char)
+
+                case TokenState.BACKSLASH_IN_DOUBLE_QUOTE:
+                    match char:
+                        case '"':
+                            # print double quote literal
+                            staging_tokens.append(char)
+                            # return to double quote state
+                            state = TokenState.IN_DOUBLE_QUOTE
+                        case "\\":
+                            # print backslash literal
+                            staging_tokens.append("\\")
+                            # return to double quote state
+                            state = TokenState.IN_DOUBLE_QUOTE
+                        case _:
+                            # previous backslash is now treated literally
+                            staging_tokens.extend(f"\\{char}")
+                            # return to double quote state
+                            state = TokenState.IN_DOUBLE_QUOTE
+
+                case TokenState.DEFAULT_BACKSLASH:
+                    # ignore all cases, append character to staging
+                    staging_tokens.append(char)
+                    # return to default state
+                    state = TokenState.DEFAULT
+
+                case _:
+                    raise ValueError(f"Unknown state {state}")
 
         # end of line: flush staging tokens
         if staging_tokens:
