@@ -2,6 +2,7 @@ import datetime as dt
 import json
 import logging
 from datetime import datetime
+
 # from typing import override
 
 LOG_RECORD_BUILTIN_ATTRS = {}
@@ -31,13 +32,14 @@ class MyJSONFormatter(logging.Formatter):
         if record.exc_info is not None:
             always_fields["exc_info"] = self.formatException(record.exc_info)
         if record.stack_info is not None:
-            always_fields["stack_info"] = self.formatException(
-                record.stack_info)
+            always_fields["stack_info"] = self.formatException(record.stack_info)
 
         message = {
-            key: msg_val
-            if (msg_val := always_fields.pop(val, None)) is not None
-            else getattr(record, val)
+            key: (
+                msg_val
+                if (msg_val := always_fields.pop(val, None)) is not None
+                else getattr(record, val)
+            )
             for key, val in self.fmt_keys.items()
         }
         message.update(always_fields)

@@ -1,8 +1,8 @@
-import uuid
 import json
-import sqlite3
 import logging.config
 import pathlib
+import sqlite3
+import uuid
 from datetime import datetime
 
 import yfinance as yf
@@ -38,15 +38,15 @@ def process_market_info(yf_info, metadata_id):
     market_info["metadata_id"] = metadata_id
     market_info["created_at"] = datetime.now().isoformat()
     market_info["regularMarketPreviousClose"] = yf_info.get(
-        "regularMarketPreviousClose")
+        "regularMarketPreviousClose"
+    )
     market_info["regularMarketOpen"] = yf_info.get("regularMarketOpen")
     market_info["regularMarketDayLow"] = yf_info.get("regularMarketDayLow")
     market_info["regularMarketDayHigh"] = yf_info.get("regularMarketDayHigh")
     market_info["regularMarketVolume"] = yf_info.get("regularMarketVolume")
     market_info["averageVolume"] = yf_info.get("averageVolume")
     market_info["averageVolume10days"] = yf_info.get("averageVolume10days")
-    market_info["averageDailyVolume10Day"] = yf_info.get(
-        "averageDailyVolume10Day")
+    market_info["averageDailyVolume10Day"] = yf_info.get("averageDailyVolume10Day")
     market_info["bid"] = yf_info.get("bid")
     market_info["ask"] = yf_info.get("ask")
     market_info["bidSize"] = yf_info.get("bidSize")
@@ -75,7 +75,9 @@ def process_expirations(date):
     return expiration
 
 
-def process_options_info(option_data, option_type, expiration_id, metadata_id, market_info_id):
+def process_options_info(
+    option_data, option_type, expiration_id, metadata_id, market_info_id
+):
     options_info = {}
 
     options_info["id"] = str(uuid.uuid4())
@@ -106,7 +108,7 @@ if __name__ == "__main__":
     yf_logger = logging.getLogger("yfinance")
     setup_logging()
 
-    conn = sqlite3.connect('db.db')
+    conn = sqlite3.connect("db.db")
     conn.execute("PRAGMA foreign_keys = ON;")
     cursor = conn.cursor()
 
@@ -199,16 +201,49 @@ if __name__ == "__main__":
         inTheMoney INTEGER,
         contractSize TEXT,
         currency TEXT,
-        foreign key(expiration_id) references expirations(id)
-        foreign key(metadata_id) references metadata(id)
+        foreign key(expiration_id) references expirations(id),
+        foreign key(metadata_id) references metadata(id),
         foreign key(market_info_id) references market_info(id)
     );
     """
     yf_logger.debug(sql)
     cursor.execute(sql)
 
-    symbols = ['SPY', 'GLD', 'TLT', 'UNG', 'XLV',
-               'VNQ', 'DBA', 'UUP', 'FXY', 'MSTR', 'XLE']
+    sql = """
+    CREATE TABLE IF NOT EXISTS positions(
+        id TEXT PRIMARY KEY,
+        created_at TEXT,
+        option_id TEXT,
+        stock_id TEXT,
+        user_id TEXT,
+        expiration_date TEXT UNIQUE
+    );
+    """
+    yf_logger.debug(sql)
+    cursor.execute(sql)
+
+    sql = """
+    CREATE TABLE IF NOT EXISTS user(
+        id TEXT PRIMARY KEY,
+        username TEXT
+    );
+    """
+    yf_logger.debug(sql)
+    cursor.execute(sql)
+
+    symbols = [
+        "SPY",
+        "GLD",
+        "TLT",
+        "UNG",
+        "XLV",
+        "VNQ",
+        "DBA",
+        "UUP",
+        "FXY",
+        "MSTR",
+        "XLE",
+    ]
     for symbol in symbols:
         yf_info = yf.Ticker(symbol).info
         yf_expirations = yf.Ticker(symbol).options
@@ -217,19 +252,22 @@ if __name__ == "__main__":
         yf_logger.info(f"=== processing {symbol} yf info ===")
 
         metadata = process_metadata(yf_info)
-        metadata_keys = ', '.join(metadata.keys())
-        metadata_placeholders = ', '.join('?' for _ in metadata)
+        metadata_keys = ", ".join(metadata.keys())
+        metadata_placeholders = ", ".join("?" for _ in metadata)
         metadata_values = tuple(metadata.values())
         sql = """
         SELECT id FROM metadata
             WHERE symbol = ?
         """
-        metadata_id = cursor.execute(sql, (metadata["symbol"],)).fetchone()[0]
+        result = cursor.execute(sql, (metadata["symbol"],)).fetchone()
+
         # DEBUG
         # print(f'metadata_id: {metadata_id}')
-        if metadata_id:
-            metadata["id"] = metadata_id
-            print(f'metadata_id: {metadata_id}')
+        if result:
+            if result[0]:
+                metadata_id = result[0]
+                metadata["id"] = metadata_id
+                print(f"metadata_id: {metadata_id}")
         sql = f"""
         INSERT OR IGNORE INTO metadata({metadata_keys})
             VALUES({metadata_placeholders})
@@ -240,8 +278,8 @@ if __name__ == "__main__":
         conn.commit()
 
         market_info = process_market_info(yf_info, metadata["id"])
-        market_info_keys = ', '.join(market_info.keys())
-        market_info_placeholders = ', '.join('?' for _ in market_info)
+        market_info_keys = ", ".join(market_info.keys())
+        market_info_placeholders = ", ".join("?" for _ in market_info)
         market_info_values = tuple(market_info.values())
         sql = f"""
         INSERT OR IGNORE INTO market_info({market_info_keys})
@@ -256,19 +294,21 @@ if __name__ == "__main__":
             yf_logger.info(f"====== {expiration} options =======")
 
             exp = process_expirations(expiration)
-            exp_keys = ', '.join(exp.keys())
-            exp_placeholders = ', '.join('?' for _ in exp)
+            exp_keys = ", ".join(exp.keys())
+            exp_placeholders = ", ".join("?" for _ in exp)
             exp_values = tuple(exp.values())
             sql = """
             SELECT id FROM expirations
                 WHERE date(expiration_date) = ?
             """
-            exp_id = cursor.execute(sql, (expiration,)).fetchone()[0]
+            result = cursor.execute(sql, (expiration,)).fetchone()
             # DEBUG
             # print(f'exp_id: {exp_id}')
-            if exp_id:
-                exp["id"] = exp_id
-                print(f'exp_id: {exp_id}')
+            if result:
+                if result[0]:
+                    exp_id = result[0]
+                    exp["id"] = exp_id
+                    print(f"exp_id: {exp_id}")
             sql = f"""
             INSERT OR IGNORE INTO expirations({exp_keys})
                 VALUES({exp_placeholders})
@@ -278,15 +318,18 @@ if __name__ == "__main__":
             cursor.execute(sql, exp_values)
             conn.commit()
 
-            calls = json.loads(yf_option_chain(
-                expiration
-            ).calls.to_json(orient='records'))
+            calls = json.loads(
+                yf_option_chain(expiration).calls.to_json(
+                    orient="records",
+                    date_format="iso",
+                )
+            )
             for call in calls:
                 c = process_options_info(
-                    call, 'call', exp["id"], metadata["id"], market_info["id"]
+                    call, "call", exp["id"], metadata["id"], market_info["id"]
                 )
-                c_keys = ', '.join(c.keys())
-                c_placeholders = ', '.join('?' for _ in c)
+                c_keys = ", ".join(c.keys())
+                c_placeholders = ", ".join("?" for _ in c)
                 c_values = tuple(c.values())
                 sql = f"""
                 INSERT OR IGNORE INTO options_info({c_keys})
@@ -297,15 +340,18 @@ if __name__ == "__main__":
                 cursor.execute(sql, c_values)
                 conn.commit()
 
-            puts = json.loads(yf_option_chain(
-                expiration
-            ).puts.to_json(orient='records'))
+            puts = json.loads(
+                yf_option_chain(expiration).puts.to_json(
+                    orient="records",
+                    date_format="iso",
+                )
+            )
             for put in puts:
                 p = process_options_info(
-                    put, 'put', exp["id"], metadata["id"], market_info["id"]
+                    put, "put", exp["id"], metadata["id"], market_info["id"]
                 )
-                p_keys = ', '.join(p.keys())
-                p_placeholders = ', '.join('?' for _ in p)
+                p_keys = ", ".join(p.keys())
+                p_placeholders = ", ".join("?" for _ in p)
                 p_values = tuple(p.values())
                 sql = f"""
                 INSERT OR IGNORE INTO options_info({p_keys})

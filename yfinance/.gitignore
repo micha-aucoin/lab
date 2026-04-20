@@ -1,3 +1,5 @@
 __pycache__
-db.db
 logs/
+*.db
+venv/
+*.csv
