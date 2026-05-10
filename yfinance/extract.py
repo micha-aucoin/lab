@@ -2,126 +2,155 @@
 
 import csv
 import sqlite3
+import sys
+from typing import cast
 
-DB_PATH = "db.db"
-conn = sqlite3.connect(DB_PATH)
-cursor = conn.cursor()
 
-query = "SELECT symbol FROM metadata;"
-cursor.execute(query)
-rows = cursor.fetchall()  # [
-#     ("DBA",),
-#     ("FXY",),
-#     ("GLD",),
-#     ("MSTR",),
-#     ("SPY",),
-#     ("TLT",),
-#     ("UNG",),
-#     ("UUP",),
-#     ("VNQ",),
-#     ("XLE",),
-#     ("XLV",),
-# ]
-symbols = [row[0] for row in rows]
+def query_db(
+    db: str,
+    query: str,
+    params: tuple = (),
+    as_dict: bool = False,
+) -> list[dict] | list[tuple]:
+    conn = None
+    rows: list[tuple] = []
+    try:
+        conn = sqlite3.connect(db)
+        if as_dict:
+            conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        if as_dict:
+            return [dict(row) for row in rows]
+        else:
+            return rows
+    except sqlite3.Error as e:
+        print(f"SQL ERROR -> {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
 
-query = """
-SELECT m.symbol
-    , m.shortName
-    , mi.created_at
-    , mi.regularMarketPreviousClose AS underlying_price
-    , e.expiration_date
-    , o.option_type
-    , o.contractSymbol
-    , o.strike
-    , o.lastPrice
-    , o.bid
-    , o.ask
-    , o.volume
-    , o.openInterest
-FROM options_info o
-    JOIN metadata m ON o.metadata_id = m.id
-    JOIN market_info mi ON o.market_info_id = mi.id
-    JOIN expirations e ON o.expiration_id = e.id
-WHERE m.symbol = ?
-"""
 
-# for sym in symbols:
-#     cursor.execute(query, (sym,))
-#     rows = cursor.fetchall()
-#     col_names = [desc[0] for desc in cursor.description]
-#     with open(f"{sym}.csv", "w", newline="") as f:
-#         writer = csv.writer(f)
-#         writer.writerow(col_names)  # header
-#         writer.writerows(rows)
-#     print(f"Wrote {sym}.csv ({len(rows)} rows)")
+def get_history(db: str, symbol: str) -> list[dict]:
+    query = """
+    SELECT m.symbol
+        , m.shortName
+        , datetime(mi.created_at) AS created_at
+        , mi.regularMarketPreviousClose AS underlying_price
+    FROM market_info mi
+        JOIN metadata m ON mi.metadata_id = m.id
+    WHERE m.symbol = ?
+    order by datetime(mi.created_at);
+    """
+    params = [symbol]
+    return cast(list[dict], query_db(db, query, tuple(params), as_dict=True))
 
-query = """
-SELECT m.symbol
-    , mi.regularMarketPreviousClose AS underlinying_price
-    , date(e.expiration_date) AS expiration_date
 
-    , c.contractSymbol AS call_contractSymbol
-    , c.lastPrice      AS call_lastPrice
-    , c.bid            AS call_bid
-    , c.ask            AS call_ask
-    , c.volume         AS call_volume
-    , c.openInterest   AS call_openInterest
+def get_expiration_dates(symbol: str, db: str) -> list[str]:
+    query = """
+    SELECT DISTINCT
+        date(e.expiration_date) AS expiration_date
+    FROM options_info o
+    JOIN metadata m
+        ON o.metadata_id = m.id
+    JOIN expirations e
+        ON o.expiration_id = e.id
+    WHERE m.symbol = ?
+    ORDER BY expiration_date DESC;
+    """
+    params = [symbol]
+    return [date[0] for date in query_db(db, query, tuple(params))]
 
-    , c.strike
 
-    , p.contractSymbol AS put_contractSymbol
-    , p.lastPrice      AS put_lastPrice
-    , p.bid            AS put_bid
-    , p.ask            AS put_ask
-    , p.volume         AS put_volume
-    , p.openInterest   AS put_openInterest
+def get_options(
+    db: str,
+    symbol: str,
+    expiration_date=None,
+    created_at=None,
+    option_type=None,
+) -> list[dict]:
+    query = """
+    SELECT *
+    FROM options_info o
+        JOIN metadata m ON o.metadata_id = m.id
+        JOIN market_info mi ON o.market_info_id = mi.id
+        JOIN expirations e ON o.expiration_id = e.id
+    WHERE m.symbol = ?
+    """
+    params = [symbol]
 
-FROM options_info c
+    if created_at:
+        query += " AND date(mi.created_at) = ?"
+        params.append(created_at)
 
-JOIN options_info p
-    ON c.metadata_id = p.metadata_id
-    AND c.expiration_id = p.expiration_id
-    AND c.strike = p.strike
-JOIN metadata m
-    ON c.metadata_id = m.id
-JOIN market_info mi
-    ON c.market_info_id = mi.id
-JOIN expirations e
-    ON c.expiration_id = e.id
+    if expiration_date:
+        query += " AND date(e.expiration_date) = ?"
+        params.append(expiration_date)
 
-WHERE m.symbol = ?
-    AND date(e.expiration_date) = ?
-    AND c.option_type = 'call'
-    AND p.option_type = 'put'
+    if option_type:
+        query += " AND o.option_type = ?"
+        params.append(option_type)
 
-ORDER BY c.strike;
-"""
+    return cast(list[dict], query_db(db, query, tuple(params), as_dict=True))
 
-check_query = """
-SELECT 1
-FROM expirations e
-JOIN options_info oi ON oi.expiration_id = e.id
-JOIN metadata m ON oi.metadata_id = m.id
-WHERE m.symbol = ?
-    AND date(e.expiration_date) = ?
-LIMIT 1;
-"""
 
-symbol, expiration_date = "SPY", "2077-04-21"
+def get_strad(db, symbol, expiration_date, created_at=None):
+    options = get_options(
+        db,
+        symbol,
+        expiration_date=expiration_date,
+        created_at=created_at,
+    )
 
-cursor.execute(check_query, (symbol, expiration_date))
-exists = cursor.fetchone() is not None
+    strikes = {}
+    for opt in options:
+        strike = opt["strike"]
+        if strike not in strikes:
+            strikes[strike] = {
+                "strike": strike,
+                "put_lastPrice": None,
+                "call_lastPrice": None,
+            }
 
-if not exists:
-    raise ValueError(f"Expiration {expiration_date} not found for {symbol}")
+        if opt["option_type"] == "put":
+            strikes[strike]["put_lastPrice"] = opt["lastPrice"]
+        elif opt["option_type"] == "call":
+            strikes[strike]["call_lastPrice"] = opt["lastPrice"]
 
-cursor.execute(query, (symbol, expiration_date))
-rows = cursor.fetchall()
+    return sorted(strikes.values(), key=lambda x: x["strike"])
 
-with open(f"{symbol}_{expiration_date}_straddles.csv", "w") as f:
-    writer = csv.writer(f)
-    writer.writerow([desc[0] for desc in cursor.description])
-    writer.writerows(rows)
-    print(f"Wrote {symbol}_{expiration_date}_straddles.csv ({len(rows)} rows)")
 
-conn.close()
+if __name__ == "__main__":
+    db = "db.db"
+    symbol = "SPY"
+
+    expiration_dates: list[str] = get_expiration_dates(db=db, symbol=symbol)
+    created_at_dates: list[str] = [
+        d["created_at"][:10] for d in get_history(db=db, symbol=symbol)
+    ]
+
+    for idx, date in enumerate(created_at_dates):
+        if idx % 5 == 0 and idx != 0:
+            print()
+        sys.stdout.write(f"{date:<{20}}")
+    print()
+    created_at = input("select created at date > ")
+
+    for idx, date in enumerate(expiration_dates):
+        if idx % 5 == 0 and idx != 0:
+            print()
+        sys.stdout.write(f"{date:<{20}}")
+    print()
+    expiration_date = input("select expiration date > ")
+
+    strad: list[dict] = get_strad(
+        db=db, symbol=symbol, expiration_date=expiration_date, created_at=created_at
+    )
+    print(
+        f"strad(db={db}, symbol={symbol}, expiration={expiration_date}, created_at={created_at})"
+    )
+    writer = csv.DictWriter(sys.stdout, fieldnames=strad[0].keys())
+    writer.writeheader()
+    writer.writerows(strad)

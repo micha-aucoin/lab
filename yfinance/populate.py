@@ -263,11 +263,10 @@ if __name__ == "__main__":
 
         # DEBUG
         # print(f'metadata_id: {metadata_id}')
-        if result:
-            if result[0]:
-                metadata_id = result[0]
-                metadata["id"] = metadata_id
-                print(f"metadata_id: {metadata_id}")
+        if result and result[0]:
+            metadata_id = result[0]
+            metadata["id"] = metadata_id
+            print(f"metadata_id: {metadata_id}")
         sql = f"""
         INSERT OR IGNORE INTO metadata({metadata_keys})
             VALUES({metadata_placeholders})
@@ -304,11 +303,10 @@ if __name__ == "__main__":
             result = cursor.execute(sql, (expiration,)).fetchone()
             # DEBUG
             # print(f'exp_id: {exp_id}')
-            if result:
-                if result[0]:
-                    exp_id = result[0]
-                    exp["id"] = exp_id
-                    print(f"exp_id: {exp_id}")
+            if result and result[0]:
+                exp_id = result[0]
+                exp["id"] = exp_id
+                print(f"exp_id: {exp_id}")
             sql = f"""
             INSERT OR IGNORE INTO expirations({exp_keys})
                 VALUES({exp_placeholders})

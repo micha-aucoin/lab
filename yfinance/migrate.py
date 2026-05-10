@@ -11,6 +11,50 @@ def setup_logging():
     logging.config.dictConfig(config)
 
 
+def cp(table_name: str, db_source: str, db_target: str) -> None:
+    source_conn = sqlite3.connect(db_source)
+    target_conn = sqlite3.connect(db_target)
+    source_cursor = source_conn.cursor()
+    target_cursor = target_conn.cursor()
+
+    sql = f"SELECT * FROM {table_name}"
+    yf_logger.debug(sql)
+    rows = source_cursor.execute(sql).fetchall()
+
+    if rows:
+        col_names = ", ".join(desc[0] for desc in source_cursor.description)
+        placeholders = ", ".join("?" for _ in source_cursor.description)
+        for row in rows:
+            sql = f"""
+            INSERT OR IGNORE INTO {table_name}({col_names})
+                VALUES({placeholders})
+            """
+            yf_logger.debug(sql)
+            yf_logger.debug(row)
+            target_cursor.execute(sql, row)
+            target_conn.commit()
+    else:
+        raise ValueError(f"{table_name} probably doesn't exist in {db_source}")
+
+    source_conn.close()
+    target_conn.close()
+
+
+def select(table: str, db: str) -> None:
+    conn = sqlite3.connect(db)
+    cursor = conn.cursor()
+
+    sql = f"SELECT * FROM {table}"
+    yf_logger.debug(sql)
+    rows = cursor.execute(sql).fetchall()
+
+    if rows:
+        [print(row) for row in rows]
+        print(tuple(desc[0] for desc in cursor.description))
+
+    conn.close()
+
+
 if __name__ == "__main__":
     yf_logger = logging.getLogger("yfinance")
     setup_logging()
@@ -121,16 +165,18 @@ if __name__ == "__main__":
         id TEXT PRIMARY KEY,
         created_at TEXT,
         option_id TEXT,
-        stock_id TEXT,
+        market_info_id TEXT,
+        metadata_id TEXT,
         user_id TEXT,
-        expiration_date TEXT UNIQUE
+        expiration_id TEXT UNIQUE,
+        active BOOLEAN
     );
     """
     yf_logger.debug(sql)
     cursor.execute(sql)
 
     sql = """
-    CREATE TABLE IF NOT EXISTS user(
+    CREATE TABLE IF NOT EXISTS whoami(
         id TEXT PRIMARY KEY,
         username TEXT
     );
@@ -140,26 +186,19 @@ if __name__ == "__main__":
 
     conn.close()
 
-    db_conn = sqlite3.connect("db.db")
-    test_conn = sqlite3.connect("test.db")
-    db_cursor = db_conn.cursor()
-    test_cursor = test_conn.cursor()
+    cp(table_name="metadata", db_source="db.db", db_target="test.db")
+    cp(table_name="market_info", db_source="db.db", db_target="test.db")
+    cp(table_name="expirations", db_source="db.db", db_target="test.db")
+    cp(table_name="options_info", db_source="db.db", db_target="test.db")
 
-    sql = "SELECT * FROM metadata"
-    yf_logger.debug(sql)
-    rows = db_cursor.execute(sql).fetchall()
-    if rows:
-        col_names = ", ".join(desc[0] for desc in db_cursor.description)
-        placeholders = ", ".join("?" for _ in db_cursor.description)
-        for row in rows:
-            sql = f"""
-            INSERT OR IGNORE INTO metadata({col_names})
-                VALUES({placeholders})
-            """
-            yf_logger.debug(sql)
-            yf_logger.debug(row)
-            test_cursor.execute(sql, row)
-            test_conn.commit()
+    select(table="metadata", db="test.db")
+    select(table="market_info", db="test.db")
+    select(table="expirations", db="test.db")
+    select(table="options_info", db="test.db")
 
-    db_conn.close()
-    test_conn.close()
+    conn = sqlite3.connect("test.db")
+    cursor = conn.cursor()
+    sql = "insert into whoami values(1, 'test-user');"
+    rows = cursor.execute(sql)
+    conn.close()
+    select(table="whoami", db="test.db")
